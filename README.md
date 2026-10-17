@@ -1,5 +1,40 @@
 # pump-sim
 
+Open-source simulator of Companytec fuel concentrators, faithful to the protocol and to SimuladorCBC 2.7.2.
+
+[![CI](https://img.shields.io/github/actions/workflow/status/gmartinu/pump-sim/ci.yml?branch=main&label=CI&style=flat)](https://github.com/gmartinu/pump-sim/actions/workflows/ci.yml)
+[![parity · SimuladorCBC 2.7.2](https://img.shields.io/github/actions/workflow/status/gmartinu/pump-sim/parity.yml?branch=main&label=parity%20%C2%B7%20SimuladorCBC%202.7.2&style=flat)](#parity-with-simuladorcbc-272)
+[![GitHub release](https://img.shields.io/github/v/release/gmartinu/pump-sim?style=flat)](https://github.com/gmartinu/pump-sim/releases/latest)
+[![npm](https://img.shields.io/npm/v/pump-sim?style=flat)](https://www.npmjs.com/package/pump-sim)
+[![npm provenance](https://img.shields.io/badge/provenance-verified-brightgreen?logo=npm&style=flat)](https://www.npmjs.com/package/pump-sim#provenance)
+[![license MIT](https://img.shields.io/badge/license-MIT-blue?style=flat)](LICENSE)
+[![node](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fgmartinu%2Fpump-sim%2Fmain%2Fpackage.json&query=%24.engines.node&label=node&style=flat)](package.json)
+[![website](https://img.shields.io/badge/website-gmartinu.github.io%2Fpump--sim-blue?style=flat)](https://gmartinu.github.io/pump-sim/)
+
+![pump-sim web UI, Pista screen](docs/img/pista.png)
+
+## Quickstart
+
+macOS / Linux (Node 22+), no install:
+
+```sh
+npx pump-sim --profile simulador-2.7.2 --ui
+```
+
+Windows: download `pump-sim-win-x64.exe` (with its `.sha256`) from the
+[latest GitHub release](https://github.com/gmartinu/pump-sim/releases/latest) and double-click it;
+no Node needed.
+
+From source (to work on the code):
+
+```sh
+git clone https://github.com/gmartinu/pump-sim && cd pump-sim
+npm install && npm run build && npm link
+pump-sim --profile simulador-2.7.2 --ui
+```
+
+## About
+
 Open-source simulator of Companytec fuel concentrators (CBC01–CBC06, Horustech, Concept).
 It speaks the protocol like **SimuladorCBC 2.7.2** and like the real consoles (DT435/DT432),
 and is meant for testing any forecourt software. It does not depend on any POS.
@@ -29,26 +64,6 @@ one port at a time (2001/1771/7002) and a single pointer on `simulador-2.7.2`.
 | `horustech-cbc-36` | Horustech in CBC protocol, 36 positions, 9 channels | DT435 p.22 | per the manual, not validated on hardware |
 | `horustech-48` | Horustech in Companytec protocol, 48 positions, 12 channels | DT435 p.22, DT277 p.7 | per the manual, not validated on hardware |
 | `concept-48` | Concept (= `horustech-48`) | DT432 p.4 | per the manual, not validated on hardware |
-
-## Quickstart
-
-macOS / Linux (Node 22+), no install:
-
-```sh
-npx pump-sim --profile simulador-2.7.2 --ui
-```
-
-Windows: download `pump-sim-win-x64.exe` (with its `.sha256`) from the
-[latest GitHub release](https://github.com/gmartinu/pump-sim/releases/latest) and double-click it;
-no Node needed.
-
-From source (to work on the code):
-
-```sh
-git clone https://github.com/gmartinu/pump-sim && cd pump-sim
-npm install && npm run build && npm link
-pump-sim --profile simulador-2.7.2 --ui
-```
 
 ## Running
 
@@ -296,6 +311,23 @@ pump-sim diff --a 192.0.2.10:2001 --controle-a http://192.0.2.10:7071 --b 127.0.
 # after a crash:
 pump-sim diff ... --json rel.json --retomar rel.json.partial.jsonl
 ```
+
+## Parity with SimuladorCBC 2.7.2
+
+The parity badge is the status of [`parity.yml`](.github/workflows/parity.yml), which runs only the
+recorded-oracle suite (`npx vitest run test/oraculo-2.7.2.test.ts`) on every push to `main` and
+every pull request. How it is measured:
+
+- **The bench**: the real SimuladorCBC 2.7.2 runs on a Windows bench and `pump-sim diff` sends the
+  same scripted cases to it (side A) and to pump-sim (side B), comparing every reply frame
+  ([Differential test](#differential-test)).
+- **The oracle**: side A's replies from the latest bench run are stored in
+  `test/fixtures/oracle-2.7.2/` (26 cases, **1350 steps**) and replayed in CI against pump-sim,
+  with no bench ([Recorded oracle](#recorded-oracle)). Any difference in a non-stale case turns the
+  badge red.
+- **Not covered**: the IDF panel, two nozzles fueling at once on the same side, and the ports of the
+  real consoles (2001/1771/857 at the same time); the other profiles are per the manual, not
+  validated on hardware ([Profiles](#profiles)).
 
 ## Recorded oracle
 

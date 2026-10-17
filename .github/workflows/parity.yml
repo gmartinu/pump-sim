@@ -1,0 +1,23 @@
+name: Parity vs SimuladorCBC 2.7.2
+
+# Replays the recorded SimuladorCBC 2.7.2 oracle (test/fixtures/oracle-2.7.2) against pump-sim.
+# Its status is the README parity badge: it turns red if the oracle breaks.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  oracle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx vitest run test/oraculo-2.7.2.test.ts
