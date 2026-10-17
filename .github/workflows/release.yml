@@ -28,6 +28,32 @@ jobs:
       - run: npm ci
       - run: npm run ci
 
+  npm:
+    needs: test
+    # Independent of build/sign/release: an npm failure never blocks the GitHub release.
+    # npm Trusted Publishing (OIDC, no NPM_TOKEN): needs npm >= 11.5.1 and Node >= 22.14.0; the
+    # trusted publisher on npmjs.com must name this repository, release.yml and environment release.
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.20.0'
+          registry-url: 'https://registry.npmjs.org'
+          cache: npm
+      - name: Upgrade npm for trusted publishing
+        run: npm install -g npm@^11.5.1
+      - name: Tag matches package.json version
+        run: |
+          v="$(node -p "require('./package.json').version")"
+          [ "v$v" = "$GITHUB_REF_NAME" ] || { echo "tag $GITHUB_REF_NAME != package.json v$v"; exit 1; }
+      - run: npm ci
+      - run: npm publish --provenance --access public
+
   build:
     needs: test
     # windows: build-sea.mjs extracts node.exe from the nodejs.org zip with bsdtar (GNU tar cannot).

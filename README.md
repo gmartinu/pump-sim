@@ -111,6 +111,12 @@ Properties → "Desbloquear" ("Unblock"). Release builds are not code-signed yet
 listens on `0.0.0.0`; the UI and control API stay on loopback): allow private networks for a bench PDV
 on another machine, or cancel for same-machine use.
 
+### Releases
+
+The npm package `pump-sim` is published only by the release workflow on a `v*` tag, through npm
+Trusted Publishing (no long-lived token) with a provenance attestation linking each version to the
+commit and workflow run that built it.
+
 ### Code signing
 
 Release executables are built by GitHub Actions from this repository only. **They are not

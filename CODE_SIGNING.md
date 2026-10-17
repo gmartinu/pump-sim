@@ -17,6 +17,8 @@ Free code signing provided by [SignPath.io](https://about.signpath.io), certific
 Only the Windows executable `pump-sim-win-x64.exe` attached to a
 [GitHub release](https://github.com/gmartinu/pump-sim/releases) of this repository. Nothing else
 (no npm package, no third-party binary, no build made outside CI) is signed under this policy.
+The npm package is not code-signed; it is published only by the release workflow, with an npm
+provenance attestation, never from a local machine.
 
 ## How a signed binary will be produced
 
