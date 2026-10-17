@@ -1,0 +1,24 @@
+{
+  "formato": "pump-sim/oraculo@1",
+  "caso": "DIFF-03",
+  "titulo": "Silêncio × erro",
+  "comparacao": "bytes",
+  "sessao": "diff-r10",
+  "roteiroHash": "sha256:9cd83ce4c63af2c63708a5c789f65594",
+  "origemHash": "relatório da bancada",
+  "acoesA": [
+    {"passo":"drenar","ok":true,"detalhe":"0 registro(s) lido(s)"},
+    {"passo":"drenar","ok":true,"detalhe":"0 registro(s) lido(s)"},
+    {"passo":"config_padrao","ok":true}
+  ],
+  "passos": [
+    {"indice":0,"quadro":"(&E0800000000)","a":"((TL0800000000B0)"},
+    {"indice":1,"quadro":"(&S)","a":"(SLLFFLLFFLLFFLLFFLLFFLLFFLLFFLLFFFFDD6V3.7M1.0G7E)","ignorarFim":2,"sensivel":["bateria"]},
+    {"indice":2,"quadro":"(&S79)","a":"(SLLFFLLFFLLFFLLFFLLFFLLFFLLFFLLFFFFDD6V3.7M1.0G7E)","ignorarFim":2,"sensivel":["bateria"]},
+    {"indice":3,"quadro":"(&T08L2e)","a":null},
+    {"indice":4,"quadro":"(&T08L00)","a":null},
+    {"indice":5,"quadro":"(&X)","a":null},
+    {"indice":6,"quadro":"(&T08L2E","a":null},
+    {"indice":7,"quadro":"(&T08L2E)","a":"(TL080000000088)"}
+  ]
+}

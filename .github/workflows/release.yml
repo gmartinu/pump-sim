@@ -1,0 +1,97 @@
+# Release: build the Windows executable from this repository, have SignPath sign it, attach the
+# signed file to the GitHub release. Policy and roles: CODE_SIGNING.md.
+#
+# Repository configuration (Settings → Secrets and variables → Actions):
+#   variables  SIGNPATH_ORGANIZATION_ID, SIGNPATH_PROJECT_SLUG, SIGNPATH_SIGNING_POLICY_SLUG
+#   secret     SIGNPATH_API_TOKEN (a SignPath CI user token, submitter role only)
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.20.0'
+          cache: npm
+      - run: npm ci
+      - run: npm run ci
+
+  build:
+    needs: test
+    # windows: build-sea.mjs extracts node.exe from the nodejs.org zip with bsdtar (GNU tar cannot).
+    runs-on: windows-latest
+    outputs:
+      artifact-id: ${{ steps.upload-unsigned.outputs.artifact-id }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          # The SEA blob format follows the Node version: must be exactly NODE_VERSION of tools/build-sea.mjs.
+          node-version: '22.20.0'
+          cache: npm
+      - name: Tag matches package.json version
+        shell: bash
+        run: |
+          v="$(node -p "require('./package.json').version")"
+          [ "v$v" = "$GITHUB_REF_NAME" ] || { echo "tag $GITHUB_REF_NAME != package.json v$v"; exit 1; }
+      - run: npm ci
+      - run: npm run build:sea:win
+      - id: upload-unsigned
+        uses: actions/upload-artifact@v4
+        with:
+          name: pump-sim-win-x64-unsigned
+          path: build/sea/pump-sim-win-x64.exe
+          if-no-files-found: error
+
+  sign:
+    needs: build
+    runs-on: ubuntu-latest
+    # Optional: protect this environment with required reviewers so each signing request is approved
+    # in GitHub as well as in SignPath (CODE_SIGNING.md, "Approval").
+    environment: release
+    steps:
+      - name: Submit signing request to SignPath
+        uses: signpath/github-action-submit-signing-request@v1
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
+          github-artifact-id: ${{ needs.build.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: signed
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pump-sim-win-x64-signed
+          path: signed/pump-sim-win-x64.exe
+          if-no-files-found: error
+
+  release:
+    needs: sign
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: pump-sim-win-x64-signed
+          path: signed
+      - name: Checksum
+        working-directory: signed
+        run: sha256sum pump-sim-win-x64.exe > pump-sim-win-x64.exe.sha256
+      - name: Create the GitHub release with the signed executable
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" \
+            --generate-notes --verify-tag \
+            signed/pump-sim-win-x64.exe signed/pump-sim-win-x64.exe.sha256

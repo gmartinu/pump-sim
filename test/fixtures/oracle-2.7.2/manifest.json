@@ -1,0 +1,42 @@
+{
+  "formato": "pump-sim/oraculo@1",
+  "perfil": "simulador-2.7.2",
+  "sessoes": [
+    {
+      "id": "diff-r10",
+      "fonte": "diff-r10.json",
+      "alvoA": "A 127.0.0.1:2001",
+      "inicioRelogio": "2026-10-17T18:55:38",
+      "portaLogica": 7002,
+      "drenarAntes": true,
+      "casos": [
+        "BANCADA-1710",
+        "DIFF-01",
+        "DIFF-02",
+        "DIFF-03",
+        "DIFF-04",
+        "DIFF-05",
+        "DIFF-06",
+        "DIFF-07",
+        "DIFF-08",
+        "DIFF-09",
+        "DIFF-10",
+        "DIFF-11",
+        "DIFF-12",
+        "DIFF-13",
+        "DIFF-14",
+        "DIFF-15",
+        "DIFF-16",
+        "DIFF-17R",
+        "DIFF-18",
+        "DIFF-19",
+        "DIFF-20",
+        "DIFF-30",
+        "EQUIV-LEITURA",
+        "EQUIV-COMANDOS",
+        "EQUIV-MOTOR",
+        "EQUIV-PENDENTES"
+      ]
+    }
+  ]
+}

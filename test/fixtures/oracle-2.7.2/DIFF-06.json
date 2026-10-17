@@ -1,0 +1,37 @@
+{
+  "formato": "pump-sim/oraculo@1",
+  "caso": "DIFF-06",
+  "titulo": "&V com 3 bicos",
+  "comparacao": "bytes",
+  "sessao": "diff-r10",
+  "roteiroHash": "sha256:c85afe47d4896626849e0a779ae37585",
+  "origemHash": "relatório da bancada",
+  "acoesA": [
+    {"passo":"drenar","ok":true,"detalhe":"0 registro(s) lido(s)"},
+    {"passo":"config_padrao","ok":true},
+    {"passo":"canal {\"n\":1}","ok":true},
+    {"passo":"bico_radio {\"lado\":\"esquerdo\",\"alt\":false}","ok":true},
+    {"passo":"retirar {\"lado\":\"esquerdo\"}","ok":true,"detalhe":"botão esquerdo 'Retira Bico' -> 'Abastecendo..'"},
+    {"passo":"canal {\"n\":2}","ok":true},
+    {"passo":"bico_radio {\"lado\":\"esquerdo\",\"alt\":false}","ok":true},
+    {"passo":"retirar {\"lado\":\"esquerdo\"}","ok":true,"detalhe":"botão esquerdo 'Retirar Bico' -> 'Abastecendo..'"},
+    {"passo":"canal {\"n\":3}","ok":true},
+    {"passo":"bico_radio {\"lado\":\"esquerdo\",\"alt\":false}","ok":true},
+    {"passo":"retirar {\"lado\":\"esquerdo\"}","ok":true,"detalhe":"botão esquerdo 'Retirar Bico' -> 'Abastecendo..'"},
+    {"passo":"canal {\"n\":1}","ok":true},
+    {"passo":"bico_radio {\"lado\":\"esquerdo\",\"alt\":false}","ok":true},
+    {"passo":"recolocar {\"lado\":\"esquerdo\"}","ok":true,"detalhe":"botão esquerdo 'Abastecendo..' -> 'Concluindo..'"},
+    {"passo":"canal {\"n\":2}","ok":true},
+    {"passo":"bico_radio {\"lado\":\"esquerdo\",\"alt\":false}","ok":true},
+    {"passo":"recolocar {\"lado\":\"esquerdo\"}","ok":true,"detalhe":"botão esquerdo 'Abastecendo..' -> 'Concluindo..'"},
+    {"passo":"canal {\"n\":3}","ok":true},
+    {"passo":"bico_radio {\"lado\":\"esquerdo\",\"alt\":false}","ok":true},
+    {"passo":"recolocar {\"lado\":\"esquerdo\"}","ok":true,"detalhe":"botão esquerdo 'Abastecendo..' -> 'Concluindo..'"}
+  ],
+  "passos": [
+    {"indice":0,"quadro":"(&P04000050FF)","a":"(P04)"},
+    {"indice":1,"quadro":"(&P0800005003)","a":"(P08)"},
+    {"indice":2,"quadro":"(&P0C0000500E)","a":"(P0C)"},
+    {"indice":3,"quadro":"(&V)","a":"(04000044080000440C000044)","sensivel":["vazao-livre"]}
+  ]
+}

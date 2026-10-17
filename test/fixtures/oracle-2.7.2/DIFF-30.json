@@ -1,0 +1,21 @@
+{
+  "formato": "pump-sim/oraculo@1",
+  "caso": "DIFF-30",
+  "titulo": "Console real: ponteiro por porta (2001/1771/857)",
+  "comparacao": "bytes",
+  "sessao": "diff-r10",
+  "roteiroHash": "sha256:7446eabcb9d1803e25d4d4171495c3af",
+  "origemHash": "relatório da bancada",
+  "pulado": "pulado: porta indisponível",
+  "motivo": "A 127.0.0.1:1771: connect ECONNREFUSED 127.0.0.1:1771",
+  "acoesA": [
+    {"passo":"drenar","ok":true,"detalhe":"1 registro(s) lido(s)"},
+    {"passo":"canal {\"n\":1}","ok":true},
+    {"passo":"bico_radio {\"lado\":\"esquerdo\",\"alt\":false}","ok":true},
+    {"passo":"retirar {\"lado\":\"esquerdo\"}","ok":true,"detalhe":"botão esquerdo 'Retirar Bico' -> 'Abastecendo..'"},
+    {"passo":"canal {\"n\":1}","ok":true},
+    {"passo":"bico_radio {\"lado\":\"esquerdo\",\"alt\":false}","ok":true},
+    {"passo":"recolocar {\"lado\":\"esquerdo\"}","ok":true,"detalhe":"botão esquerdo 'Abastecendo..' -> 'Concluindo..'"}
+  ],
+  "passos": []
+}

@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'" />
+    <meta name="referrer" content="no-referrer" />
+    <title>pump-sim · simulador de concentrador Companytec</title>
+    <meta name="description" content="Simulador open source dos concentradores Companytec (CBC, Horustech, Concept e Identfid), fiel ao SimuladorCBC 2.7.2, com API de controle, servidor MCP e console de tráfego." />
+    <meta name="color-scheme" content="dark light" />
+    <link rel="icon" href="assets/icone.svg" type="image/svg+xml" />
+    <link rel="icon" href="assets/icone-32.png" type="image/png" sizes="32x32" />
+    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png" />
+    <link rel="stylesheet" href="css/fonts.css" />
+    <link rel="stylesheet" href="css/tokens.css" />
+    <link rel="stylesheet" href="css/site.css" />
+    <script defer src="js/i18n.js"></script>
+    <script defer src="js/data.js"></script>
+    <script defer src="js/main.js"></script>
+  </head>
+  <body class="hp th-dark">
+    <script src="js/theme.js"></script>
+
+    <header class="nav">
+      <div class="wrap nav-in">
+        <a class="brand" href="./"><img class="brand-mark" src="assets/icone.svg" alt="" width="18" height="18" />pump-sim</a>
+        <nav class="nav-links">
+          <a href="#features" data-i18n="nav.links.0.t">Recursos</a>
+          <a href="#quickstart" data-i18n="nav.links.1.t">Início rápido</a>
+          <a href="#agents" data-i18n="nav.links.2.t">Agentes</a>
+          <a href="https://github.com/gmartinu/pump-sim#readme" data-i18n="nav.links.3.t">Docs</a>
+        </nav>
+        <div class="nav-r">
+          <span class="seg" role="group" aria-label="Idioma / Language">
+            <button type="button" class="on" data-lang="pt" aria-pressed="true">PT</button>
+            <button type="button" data-lang="en" aria-pressed="false">EN</button>
+          </span>
+          <button type="button" class="icbtn d-only" data-theme-toggle aria-label="Tema claro"><span class="ms" data-theme-ic>light_mode</span></button>
+          <a class="btn d-only" href="https://github.com/gmartinu/pump-sim"><span class="ms s16">code</span><span data-i18n="nav.gh">GitHub</span></a>
+          <button type="button" class="icbtn m-only" id="menu-btn" aria-expanded="false" aria-controls="mnav" aria-label="Menu" data-i18n-aria="nav.menu"><span class="ms">menu</span></button>
+        </div>
+      </div>
+      <div class="mnav" id="mnav" hidden>
+        <a href="#features" data-i18n="nav.links.0.t">Recursos</a>
+        <a href="#quickstart" data-i18n="nav.links.1.t">Início rápido</a>
+        <a href="#agents" data-i18n="nav.links.2.t">Agentes</a>
+        <a href="https://github.com/gmartinu/pump-sim#readme" data-i18n="nav.links.3.t">Docs</a>
+        <a href="https://github.com/gmartinu/pump-sim"><span class="ms s16">code</span><span data-i18n="nav.gh">GitHub</span></a>
+        <button type="button" data-theme-toggle><span class="ms s16" data-theme-ic>light_mode</span><span data-theme-label>Tema claro</span></button>
+      </div>
+    </header>
+
+    <main>
+      <section class="wrap hero">
+        <div class="hero-t">
+          <span class="eyebrow"><i></i><span data-i18n="hero.eyebrow">v0.1 · open source · MIT</span></span>
+          <h1 class="h-disp" data-i18n="hero.h1">Simule o concentrador. Teste a pista sem ir ao posto.</h1>
+          <p class="lead" data-i18n="hero.lead">pump-sim é um simulador open source dos concentradores Companytec (CBC, Horustech, Concept e Identfid), fiel ao SimuladorCBC 2.7.2, com API de controle, servidor MCP e console de tráfego para devs e agentes de IA.</p>
+          <div class="fx col gap12">
+            <div class="ctas">
+              <a class="bb pri" href="https://github.com/gmartinu/pump-sim/releases/latest/download/pump-sim-win-x64.exe"><span class="ms">download</span><span data-i18n="hero.cta1">Baixar para Windows</span></a>
+              <a class="bb" href="#quickstart"><span class="ms">terminal</span><span data-i18n="hero.cta2">Instalar pela CLI</span></a>
+              <a class="bb ghost" href="https://github.com/gmartinu/pump-sim"><span class="ms">open_in_new</span><span data-i18n="hero.cta3">GitHub</span></a>
+            </div>
+            <div class="meta"><span><span class="ms fill">verified</span> <span data-i18n="hero.meta">pump-sim-win-x64.exe · assinado · SHA-256 no release</span></span><span data-i18n="hero.meta2">macOS e Linux: Node 22+</span></div>
+          </div>
+          <div class="tryline">
+            <span class="tryk" data-i18n="hero.tryk">Teste em uma linha</span>
+            <span class="cmd"><span class="pr">$</span><span class="tx" data-copy-src>printf '(&amp;S)' | nc 127.0.0.1 2001</span><button type="button" class="cpb" data-copy aria-label="Copiar"><span class="ms">content_copy</span></button></span>
+          </div>
+        </div>
+        <div class="hv">
+          <div class="hv-card" id="hero-card"></div>
+          <span class="cap" data-i18n="hero.cap">Canal 1 · perfil simulador-2.7.2 · 127.0.0.1:2001</span>
+        </div>
+      </section>
+
+      <section class="shot">
+        <div class="wrap">
+          <div class="shot-h">
+            <div><span class="k" data-i18n="shot.k">A interface</span><h2 class="h-sec" data-i18n="shot.h">A pista do 2.7.2, com o que faltava.</h2></div>
+            <p class="p-sec" data-i18n="shot.p">Os painéis do SimuladorCBC, mais tráfego ao vivo, gravação e diff. Roda no navegador com --ui ou numa janela própria no Windows.</p>
+          </div>
+        </div>
+        <div class="wrap win-w">
+          <div class="win" id="win">
+            <div class="win-in" id="win-in" aria-hidden="true">
+              <div class="tbw">
+                <div class="tb">
+                  <div class="brand"><img class="brand-mark" src="assets/icone.svg" alt="" width="18" height="18" />pump-sim</div>
+                  <div class="pill"><span class="ms s16 faint">memory</span><span class="mono">simulador-2.7.2</span><span class="ms s16 faint">expand_more</span></div>
+                  <div class="tb-right">
+                    <div class="pill"><span class="dot"></span><span class="k">Portas</span><span class="mono">2001</span></div>
+                    <div class="pill"><span class="ms s16 faint">cable</span><span class="mono">1</span>conexão</div>
+                    <div class="pill"><span class="ms s16 faint">schedule</span><span class="mono" id="tb-clock">17/10 14:32:08</span></div>
+                    <div class="pill"><span class="dot"></span><span class="k">API</span><span class="mono">:7070</span><span class="dot"></span><span class="k">MCP</span></div>
+                  </div>
+                </div>
+                <nav class="tabs">
+                  <div class="tab on"><span class="ms s16">local_gas_station</span>Pista</div>
+                  <div class="tab"><span class="ms s16">list_alt</span>Comandos básicos</div>
+                  <div class="tab"><span class="ms s16">settings_input_hdmi</span>Comunicação</div>
+                  <div class="tab"><span class="ms s16">sell</span>Preços</div>
+                  <div class="tab"><span class="ms s16">tune</span>Configuração</div>
+                  <div class="tab"><span class="ms s16">swap_vert</span>Tráfego</div>
+                  <div class="tab"><span class="ms s16">badge</span>Identfid</div>
+                  <div class="tab"><span class="ms s16">difference</span>Diff</div>
+                  <div class="tab"><span class="ms s16">smart_toy</span>Gravação &amp; agentes</div>
+                </nav>
+              </div>
+              <div class="main">
+                <div class="legend" id="legend"></div>
+                <div class="grid4" id="grid"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <span class="swipe m-only"><span class="ms">swipe</span><span data-i18n="shot.swipe">Arraste para ver a pista inteira</span></span>
+      </section>
+
+      <section class="sec" id="features">
+        <div class="wrap">
+          <div><span class="k" data-i18n="feat.k">Recursos</span><h2 class="h-sec" data-i18n="feat.h">Feito para quem integra bomba.</h2></div>
+          <div class="fgrid">
+            <article class="fc">
+              <div class="fh"><span class="fi"><span class="ms">lan</span></span><h3 data-i18n="feat.protoT">Protocolos e perfis</h3></div>
+              <p data-i18n="feat.protoD">Companytec (&amp;…), Identfid (?…) com os 14 modos de identificação e Horustech &gt;? nativo. Os perfis são dados, não código.</p>
+              <div class="fc-foot">
+                <span class="chip ok">simulador-2.7.2</span><span class="chip">cbc-32</span><span class="chip">cbc05-dip3</span><span class="chip">cbc01</span><span class="chip">horustech-cbc-36</span><span class="chip">horustech-48</span><span class="chip">concept-48</span>
+                <p class="perf-val small"><b class="id">simulador-2.7.2</b> <span data-i18n="feat.valMed">medido contra o SimuladorCBC 2.7.2 real.</span></p>
+                <p class="perf-val small"><b data-i18n="feat.valManK">Os outros seis</b> <span data-i18n="feat.valMan">segundo o manual, não validado em hardware (DT435, DT432, DT277).</span></p>
+              </div>
+            </article>
+            <article class="fc">
+              <div class="fh"><span class="fi"><span class="ms">rule</span></span><h3 data-i18n="feat.parT">Paridade com o 2.7.2, medida</h3></div>
+              <p data-i18n="feat.parD">Cada caso manda o quadro exato a um SimuladorCBC 2.7.2 numa bancada Windows real e compara a resposta byte a byte. Os bugs dele viram quirks, ligados só no perfil simulador-2.7.2.</p>
+              <div class="snips"><span class="snip" data-i18n="feat.parF">pump-sim diff --a &lt;bancada&gt;:2001</span></div>
+            </article>
+            <article class="fc">
+              <div class="fh"><span class="fi"><span class="ms">smart_toy</span></span><h3 data-i18n="feat.agT">Pronto para agentes</h3></div>
+              <p data-i18n="feat.agD">API HTTP de controle só em loopback e servidor MCP stdio com o mesmo catálogo de comandos. O relógio manual deixa o CI do seu cliente determinístico.</p>
+              <div class="snips"><span class="snip" data-i18n="feat.agF">POST /api/comandos/&lt;comando&gt;</span></div>
+            </article>
+            <article class="fc span2">
+              <div class="con-split">
+                <div class="con-l">
+                  <div class="fh"><span class="fi"><span class="ms">terminal</span></span><h3 data-i18n="feat.conT">Console de tráfego e injeção de falhas</h3></div>
+                  <p data-i18n="feat.conD">Cada leitura e escrita do socket, por porta e conexão. Injete uma falha e veja o seu software reagir.</p>
+                  <div class="fc-foot">
+                    <span class="chip f">sem_resposta</span><span class="chip f">atraso 800 ms</span><span class="chip f">frame_corrompido</span><span class="chip f">truncado</span>
+                  </div>
+                </div>
+                <div class="con" id="con"></div>
+              </div>
+            </article>
+            <article class="fc">
+              <div class="fh"><span class="fi"><span class="ms">history</span></span><h3 data-i18n="feat.recT">Gravar, reproduzir, comparar</h3></div>
+              <p data-i18n="feat.recD">Grave o tráfego em JSONL, reproduza como concentrador ou como cliente, e rode o teste diferencial contra um alvo real.</p>
+              <div class="snips">
+                <span class="snip" data-i18n="feat.recF.0">--record trafego.jsonl</span>
+                <span class="snip" data-i18n="feat.recF.1">pump-sim replay servidor trafego.jsonl</span>
+                <span class="snip" data-i18n="feat.recF.2">pump-sim diff --a &lt;alvo&gt;:2001</span>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="sec" id="quickstart">
+        <div class="wrap qs">
+          <div class="qs-l">
+            <div><span class="k" data-i18n="qs.k">Início rápido</span><h2 class="h-sec" data-i18n="qs.h">Três comandos.</h2></div>
+            <p class="p-sec" data-i18n="qs.p">macOS, Linux ou Windows com Node 22+. No Windows, o .exe dispensa tudo isso: dois cliques e a interface abre.</p>
+            <span class="seg qs-tabs" role="tablist">
+              <button type="button" role="tab" class="on" aria-selected="true" aria-controls="qs-cli" data-qs-tab="cli" data-i18n="qs.tabs.0.t">CLI</button>
+              <button type="button" role="tab" aria-selected="false" aria-controls="qs-win" data-qs-tab="win" data-i18n="qs.tabs.1.t">Windows .exe</button>
+            </span>
+          </div>
+          <div class="qs-r">
+            <div class="steps" id="qs-cli" role="tabpanel">
+              <div class="step">
+                <span class="sn">1</span>
+                <div class="st-b">
+                  <div class="st-t" data-i18n="qs.steps.0.t">Clonar</div>
+                  <div class="cblock"><span class="pr">$</span><span class="tx" data-copy-src>git clone https://github.com/gmartinu/pump-sim &amp;&amp; cd pump-sim</span><button type="button" class="cpb" data-copy aria-label="Copiar"><span class="ms">content_copy</span></button></div>
+                </div>
+              </div>
+              <div class="step">
+                <span class="sn">2</span>
+                <div class="st-b">
+                  <div class="st-t" data-i18n="qs.steps.1.t">Instalar e compilar</div>
+                  <div class="cblock"><span class="pr">$</span><span class="tx" data-copy-src>npm install &amp;&amp; npm run build &amp;&amp; npm link</span><button type="button" class="cpb" data-copy aria-label="Copiar"><span class="ms">content_copy</span></button></div>
+                </div>
+              </div>
+              <div class="step">
+                <span class="sn">3</span>
+                <div class="st-b">
+                  <div class="st-t" data-i18n="qs.steps.2.t">Subir com a interface</div>
+                  <div class="cblock"><span class="pr">$</span><span class="tx" data-copy-src>pump-sim --profile simulador-2.7.2 --ui</span><button type="button" class="cpb" data-copy aria-label="Copiar"><span class="ms">content_copy</span></button></div>
+                </div>
+              </div>
+            </div>
+            <div class="steps qs-winp" id="qs-win" role="tabpanel" hidden>
+              <a class="bb pri" href="https://github.com/gmartinu/pump-sim/releases/latest/download/pump-sim-win-x64.exe"><span class="ms">download</span><span data-i18n="hero.cta1">Baixar para Windows</span></a>
+              <div class="meta"><span><span class="ms fill">verified</span> <span data-i18n="hero.meta">pump-sim-win-x64.exe · assinado · SHA-256 no release</span></span></div>
+            </div>
+            <div class="after">
+              <span data-i18n="qs.after">Depois, aponte o PDV ou a automação para 127.0.0.1:2001.</span>
+              <span class="mono small">printf '(&amp;S)' | nc 127.0.0.1 2001</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="sec agw" id="agents">
+        <div class="wrap ag">
+          <div class="agl">
+            <div><span class="k" data-i18n="ag.k">Para agentes</span><h2 class="h-sec" data-i18n="ag.h">Seu agente dirige a pista.</h2></div>
+            <p class="p-sec" data-i18n="ag.p">pump-sim mcp expõe o catálogo de comandos como ferramentas MCP. Cada chamada vira um POST na API de controle: o agente abastece, apresenta cartão, injeta falha, avança o relógio e lê o estado.</p>
+            <div class="tools-w">
+              <span class="tk" data-i18n="ag.toolsK">Algumas ferramentas</span>
+              <div class="tools"><span class="tool">gerar_abastecimentos</span><span class="tool">apresentar_cartao</span><span class="tool">injetar_falha</span><span class="tool">avancar_tempo</span><span class="tool">set_perfil</span><span class="tool">start_recording</span></div>
+            </div>
+            <div class="warnl"><span class="ms">shield</span><span data-i18n="ag.warn">A API não tem autenticação e só escuta em 127.0.0.1.</span></div>
+          </div>
+          <div class="ed">
+            <div class="ed-h"><span class="ms">data_object</span>mcp.json<button type="button" class="cp" data-copy-mcp><span class="ms">content_copy</span><span data-i18n="ag.copy">Copiar</span></button></div>
+            <pre class="ed-b d-only" id="mcp"></pre>
+            <pre class="ed-b m-only" id="mcp-m"></pre>
+            <div class="ed-f"><span data-i18n="ag.before">Antes, suba o simulador com a API:</span><span class="mono">$ pump-sim --profile cbc-32 --control 7070</span></div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="foot">
+      <div class="wrap foot-g">
+        <div class="foot-l">
+          <span class="brand"><img class="brand-mark" src="assets/icone.svg" alt="" width="18" height="18" />pump-sim</span>
+          <span class="small muted" data-i18n="foot.tag">Simulador open source de concentrador de combustível.</span>
+          <span class="small faint foot-lic" data-i18n="foot.lic">Licença MIT · © 2026 Gabriel Martinusso</span>
+        </div>
+        <nav class="foot-links">
+          <a href="https://github.com/gmartinu/pump-sim" data-i18n="foot.links.0.t">GitHub</a>
+          <a href="https://github.com/gmartinu/pump-sim/releases" data-i18n="foot.links.1.t">Releases</a>
+          <a href="https://github.com/gmartinu" data-i18n="foot.links.2.t">Portfólio</a>
+          <a href="https://github.com/gmartinu/thermal-print" data-i18n="foot.links.3.t">thermal-print</a>
+        </nav>
+        <div class="disc">
+          <p data-i18n="foot.disc">Projeto independente. Não é afiliado à Companytec nem endossado por ela. Companytec, CBC, Horustech e Concept são marcas de seus respectivos titulares.</p>
+          <p class="sigl"><span data-i18n="foot.signA">Assinatura de código gratuita por </span><a href="https://about.signpath.io">SignPath.io</a><span data-i18n="foot.signB">, certificado da </span><a href="https://signpath.org">SignPath Foundation</a> · <a href="https://github.com/gmartinu/pump-sim/blob/main/CODE_SIGNING.md" data-i18n="foot.signL">Política de assinatura</a></p>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

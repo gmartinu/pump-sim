@@ -1,0 +1,12 @@
+node_modules/
+dist/
+coverage/
+*.log
+build/
+.DS_Store
+# bench recordings and diff reports (may hold captured traffic)
+gravacoes/
+*.jsonl
+rel.json*
+*.exe
+/diff-*.json

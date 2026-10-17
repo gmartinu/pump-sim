@@ -1,0 +1,21 @@
+{
+  "formato": "pump-sim/oraculo@1",
+  "caso": "DIFF-11",
+  "titulo": "Eco BB do &T",
+  "comparacao": "bytes",
+  "sessao": "diff-r10",
+  "roteiroHash": "sha256:37b3997bb4f2ac7c9f8b0d6ddc030ab9",
+  "origemHash": "relatório da bancada",
+  "acoesA": [
+    {"passo":"drenar","ok":true,"detalhe":"0 registro(s) lido(s)"},
+    {"passo":"drenar","ok":true,"detalhe":"0 registro(s) lido(s)"},
+    {"passo":"config_padrao","ok":true}
+  ],
+  "passos": [
+    {"indice":0,"quadro":"(&E4400000000)","a":"((TL4400000000B0)"},
+    {"indice":1,"quadro":"(&EC400000000)","a":"((TLC400000000BF)"},
+    {"indice":2,"quadro":"(&T0AL37)","a":"(TG0A000000008C)"},
+    {"indice":3,"quadro":"(&T44L2E)","a":"(TL440000000088)"},
+    {"indice":4,"quadro":"(&TC4L3D)","a":"(TGC40000000092)"}
+  ]
+}

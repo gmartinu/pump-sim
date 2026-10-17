@@ -1,0 +1,30 @@
+{
+  "formato": "pump-sim/oraculo@1",
+  "caso": "DIFF-14",
+  "titulo": "Identfid byte a byte",
+  "comparacao": "bytes",
+  "sessao": "diff-r10",
+  "roteiroHash": "sha256:9a049ea722eb76b852f23de2ac044bf2",
+  "origemHash": "relatório da bancada",
+  "acoesA": [
+    {"passo":"drenar","ok":true,"detalhe":"0 registro(s) lido(s)"},
+    {"passo":"config_padrao","ok":true},
+    {"passo":"canal {\"n\":1}","ok":true},
+    {"passo":"bico_radio {\"lado\":\"esquerdo\",\"alt\":false}","ok":true},
+    {"passo":"retirar {\"lado\":\"esquerdo\"}","ok":true,"detalhe":"botão esquerdo 'Retirar Bico' -> 'Abastecendo..'"},
+    {"passo":"canal {\"n\":1}","ok":true},
+    {"passo":"bico_radio {\"lado\":\"esquerdo\",\"alt\":false}","ok":true},
+    {"passo":"recolocar {\"lado\":\"esquerdo\"}","ok":true,"detalhe":"botão esquerdo 'Abastecendo..' -> 'Concluindo..'"}
+  ],
+  "passos": [
+    {"indice":0,"quadro":"(?F27GABCDEF01234567890000235900002359FD)","a":"(FG000000000000ABCDEF0123456789000023590000235927FE)"},
+    {"indice":1,"quadro":"(?LF000000F1)","a":"(LF000000000001ABCDEF012345678900002359000023592704)"},
+    {"indice":2,"quadro":"(?F00AABCDEF01234567890000000000000000C8)","a":"(FA000000000000000000000000000000000000000000000027)"},
+    {"indice":3,"quadro":"(?F00L0000000000000000000000000000000031)","a":null},
+    {"indice":4,"quadro":"(?A80)","a":"(0)","puladoNaBancada":"depende de \"idf\", pulado em A"},
+    {"indice":5,"quadro":"(?F27G11223344556677880000235900002359A3)","a":"(FG0000000000001122334455667788000023590000235927A4)"},
+    {"indice":6,"quadro":"(?V95)","a":"(04000000000000000064)","puladoNaBancada":"depende de \"idf\", pulado em A"},
+    {"indice":7,"quadro":"(&M04I20)","a":"(M04)"},
+    {"indice":8,"quadro":"(&M04L23)","a":"(M04)"}
+  ]
+}

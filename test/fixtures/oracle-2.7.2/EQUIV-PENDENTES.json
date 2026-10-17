@@ -1,0 +1,29 @@
+{
+  "formato": "pump-sim/oraculo@1",
+  "caso": "EQUIV-PENDENTES",
+  "titulo": "Equivalência: pontos abertos medidos na bancada (#55, E3 com KK não-hex, fonte do nível do 32)",
+  "comparacao": "bytes",
+  "sessao": "diff-r10",
+  "roteiroHash": "sha256:1344db863f426eb5905078ca54baa6c5",
+  "origemHash": "relatório da bancada",
+  "acoesA": [
+    {"passo":"drenar","ok":true,"detalhe":"0 registro(s) lido(s)"},
+    {"passo":"config_padrao","ok":true},
+    {"passo":"modelo {\"valor\":\"Horustech\"}","ok":true},
+    {"passo":"fechar_modais","ok":true},
+    {"passo":"fechar_modais","ok":true},
+    {"passo":"modelo {\"valor\":\"CBC-06\"}","ok":true},
+    {"passo":"config_padrao","ok":true}
+  ],
+  "passos": [
+    {"indice":0,"quadro":"(?F00L31)","a":null},
+    {"indice":1,"quadro":"(&S)","a":"(SLPFFLLFFLLFFLLFFLLFFLLFFLLFFLLFFFFDD6V3.7M1.0G7F)","ignorarFim":2,"sensivel":["bateria"]},
+    {"indice":2,"quadro":">?000B32022001500XX","a":null},
+    {"indice":3,"quadro":"(&S)","a":"(SLPFFLLFFLLFFLLFFLLFFLLFFLLFFLLFFFFDD6V3.7M1.0G80)","ignorarFim":2,"sensivel":["bateria"]},
+    {"indice":4,"quadro":">?000B320210015002F","a":">!00043200AA"},
+    {"indice":5,"quadro":"(&T44U37)","a":"(TU440000212399)"},
+    {"indice":6,"quadro":"(&T44u57)","a":"(TU4400002123000059)"},
+    {"indice":7,"quadro":"(&T04u53)","a":"(TU0400001123000054)"},
+    {"indice":8,"quadro":"(&T08u57)","a":"(TU0800001123000058)"}
+  ]
+}

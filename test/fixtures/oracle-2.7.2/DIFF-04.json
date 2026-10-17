@@ -1,0 +1,18 @@
+{
+  "formato": "pump-sim/oraculo@1",
+  "caso": "DIFF-04",
+  "titulo": "Fragmentação e quadros colados",
+  "comparacao": "bytes",
+  "sessao": "diff-r10",
+  "roteiroHash": "sha256:fa56f2a71e92008473df671b0b288071",
+  "origemHash": "relatório da bancada",
+  "acoesA": [
+    {"passo":"drenar","ok":true,"detalhe":"0 registro(s) lido(s)"},
+    {"passo":"config_padrao","ok":true}
+  ],
+  "passos": [
+    {"indice":0,"quadro":"(&S)","a":"(SLLFFLLFFLLFFLLFFLLFFLLFFLLFFLLFFFFDD6V3.7M1.0G7F)","ignorarFim":2,"sensivel":["bateria"]},
+    {"indice":1,"quadro":"(&S)(&V)","a":"(SLLFFLLFFLLFFLLFFLLFFLLFFLLFFLLFFFFDD6V3.7M1.0G7F)","ignorarFim":2,"sensivel":["bateria"]},
+    {"indice":2,"quadro":"(&S)\r\n","a":"(SLLFFLLFFLLFFLLFFLLFFLLFFLLFFLLFFFFDD6V3.7M1.0G7F)","ignorarFim":2,"sensivel":["bateria"]}
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "formato": "pump-sim/oraculo@1",
+  "caso": "DIFF-01",
+  "titulo": "Ack do &U e MessageBox do nível",
+  "comparacao": "bytes",
+  "sessao": "diff-r10",
+  "roteiroHash": "sha256:d3014c63abad0ceec3f797c3fc824db4",
+  "origemHash": "relatório da bancada",
+  "acoesA": [
+    {"passo":"drenar","ok":true,"detalhe":"0 registro(s) lido(s)"},
+    {"passo":"config_padrao","ok":true},
+    {"passo":"fechar_modais","ok":true}
+  ],
+  "passos": [
+    {"indice":0,"quadro":"(&U0400123409)","a":"(U04)"},
+    {"indice":1,"quadro":"(&U08000012346D)","a":"(U08)"},
+    {"indice":2,"quadro":"(&U042012340B)","a":"(U04)"},
+    {"indice":3,"quadro":"(&S)","a":"(SLLFFLLFFLLFFLLFFLLFFLLFFLLFFLLFFFFDD6V3.7M1.0G7E)","ignorarFim":2,"sensivel":["bateria"]}
+  ]
+}

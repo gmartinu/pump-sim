@@ -1,0 +1,18 @@
+{
+  "formato": "pump-sim/oraculo@1",
+  "caso": "DIFF-10",
+  "titulo": "Layouts Ts/u com preço de 3 casas",
+  "comparacao": "bytes",
+  "sessao": "diff-r10",
+  "roteiroHash": "sha256:83f50abd387f9e915440eb3b399ba7cd",
+  "origemHash": "relatório da bancada",
+  "acoesA": [
+    {"passo":"drenar","ok":true,"detalhe":"0 registro(s) lido(s)"},
+    {"passo":"config_padrao","ok":true}
+  ],
+  "passos": [
+    {"indice":0,"quadro":"(&T08C25)","a":"(Ts08023A0102C8)"},
+    {"indice":1,"quadro":"(&T08u57)","a":"(TU0800001123000058)"},
+    {"indice":2,"quadro":"(&T08U37)","a":"(TU080000112398)"}
+  ]
+}

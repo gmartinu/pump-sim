@@ -1,0 +1,36 @@
+{
+  "formato": "pump-sim/oraculo@1",
+  "caso": "DIFF-12",
+  "titulo": "Relógio",
+  "comparacao": "bytes",
+  "sessao": "diff-r10",
+  "roteiroHash": "sha256:f70780fe552e2462200b542cb4db6b01",
+  "origemHash": "relatório da bancada",
+  "acoesA": [
+    {"passo":"drenar","ok":true,"detalhe":"0 registro(s) lido(s)"},
+    {"passo":"config_padrao","ok":true}
+  ],
+  "passos": [
+    {"indice":0,"quadro":"(&CW013A030000B8)","a":null},
+    {"indice":1,"quadro":"(&CW013A040000B9)","a":null},
+    {"indice":2,"quadro":"(&CW023A030000B9)","a":null},
+    {"indice":3,"quadro":"(&CW023A040000BA)","a":null},
+    {"indice":4,"quadro":"(&CW033A030000BA)","a":null},
+    {"indice":5,"quadro":"(&CW033A040000BB)","a":null},
+    {"indice":6,"quadro":"(&CW043A030000BB)","a":null},
+    {"indice":7,"quadro":"(&CW043A040000BC)","a":null},
+    {"indice":8,"quadro":"(&CW053A030000BC)","a":null},
+    {"indice":9,"quadro":"(&CW053A040000BD)","a":null},
+    {"indice":10,"quadro":"(&CW063A030000BD)","a":null},
+    {"indice":11,"quadro":"(&CW063A040000BE)","a":null},
+    {"indice":12,"quadro":"(&CW073A030000BE)","a":null},
+    {"indice":13,"quadro":"(&CW073A040000BF)","a":null},
+    {"indice":14,"quadro":"(&CW083A030000BF)","a":null},
+    {"indice":15,"quadro":"(&CW083A040000C0)","a":null},
+    {"indice":16,"quadro":"(&KW126101606143000B7)","a":"(KW12610160614300091)"},
+    {"indice":17,"quadro":"(&KR1F4)","a":"(KR1261016061430008C)","mascara":[[17,20]],"sensivel":["relogio"]},
+    {"indice":18,"quadro":"(&KW126101606143000B7)","a":"(KW12610160614300091)"},
+    {"indice":19,"quadro":"(&KW126131606143000BA)","a":"(KW12613160614300094)"},
+    {"indice":20,"quadro":"(&R)","a":"(REL 14:30:01 16/01/27)(DHA SIM02 V2.7.2)(SOFT MONITOR V:1.0)(M 00000000)(M 00000000)(M 00000000)(M 00000000)(M 00000000)(C01W3A010200)(C01W3A020200)(C01W3A030000)(C01W3A040000)(C02W3A010200)(C02W3A020200)(C02W3A030000)(C02W3A040000)(C03W3A010200)(C03W3A020200)(C03W3A030000)(C03W3A040000)(C04W3A010200)(C04W3A020200)(C04W3A030000)(C04W3A040000)(C05W3A010200)(C05W3A020200)(C05W3A030000)(C05W3A040000)(C06W3A010200)(C06W3A020200)(C06W3A030000)(C06W3A040000)(C07W3A010200)(C07W3A020200)(C07W3A030000)(C07W3A040000)(C08W3A010200)(C08W3A020200)(C08W3A030000)(C08W3A040000)","mascara":[[5,13]],"sensivel":["relogio"]}
+  ]
+}

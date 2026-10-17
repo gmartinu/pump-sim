@@ -1,0 +1,26 @@
+{
+  "formato": "pump-sim/oraculo@1",
+  "caso": "DIFF-19",
+  "titulo": "Preset com preço de 3 casas",
+  "comparacao": "bytes",
+  "sessao": "diff-r10",
+  "roteiroHash": "sha256:f283a03c4a55538645c7a8233ec0d00e",
+  "origemHash": "relatório da bancada",
+  "acoesA": [
+    {"passo":"drenar","ok":true,"detalhe":"1 registro(s) lido(s)"},
+    {"passo":"drenar","ok":true,"detalhe":"1 registro(s) lido(s)"},
+    {"passo":"config_padrao","ok":true},
+    {"passo":"canal {\"n\":2}","ok":true},
+    {"passo":"bico_radio {\"lado\":\"esquerdo\",\"alt\":false}","ok":true},
+    {"passo":"retirar {\"lado\":\"esquerdo\"}","ok":true,"detalhe":"botão esquerdo 'Retira Bico' -> 'Abastecendo..'"},
+    {"passo":"canal {\"n\":2}","ok":true},
+    {"passo":"bico_radio {\"lado\":\"esquerdo\",\"alt\":false}","ok":true},
+    {"passo":"recolocar {\"lado\":\"esquerdo\"}","ok":true,"detalhe":"botão esquerdo 'Abastecendo..' -> 'Concluindo..'"}
+  ],
+  "passos": [
+    {"indice":0,"quadro":"(&E0800000000)","a":"((TL0800000000B0)"},
+    {"indice":1,"quadro":"(&P0800050003)","a":"(P08)"},
+    {"indice":2,"quadro":"(&V)","a":"(08000445)"},
+    {"indice":3,"quadro":"(&A)","a":"(00050000044511233A0010081719071000010000000445005E)","ignorarFim":2,"mascara":[[19,23],[27,31]],"sensivel":["relogio","bateria"]}
+  ]
+}

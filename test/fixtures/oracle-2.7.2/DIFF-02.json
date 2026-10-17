@@ -1,0 +1,38 @@
+{
+  "formato": "pump-sim/oraculo@1",
+  "caso": "DIFF-02",
+  "titulo": "Erros reais do &M",
+  "comparacao": "bytes",
+  "sessao": "diff-r10",
+  "roteiroHash": "sha256:165599785c1b28e7a71ccbe445e179ab",
+  "origemHash": "relatório da bancada",
+  "acoesA": [
+    {"passo":"drenar","ok":true,"detalhe":"0 registro(s) lido(s)"}
+  ],
+  "passos": [
+    {"indice":0,"quadro":"(&M04Z31)","a":null},
+    {"indice":1,"quadro":"(&M3FA2D)","a":"(M3F)"},
+    {"indice":2,"quadro":"(&M99b000000000000000148)","a":"(M?f)"},
+    {"indice":3,"quadro":"(&M99b000000000000000249)","a":"(M?f)"},
+    {"indice":4,"quadro":"(&M99b00000000000000034A)","a":"(M?f)"},
+    {"indice":5,"quadro":"(&M99b00000000000000044B)","a":"(M?f)"},
+    {"indice":6,"quadro":"(&M99b00000000000000054C)","a":"(M?f)"},
+    {"indice":7,"quadro":"(&M99b00000000000000064D)","a":"(M?f)"},
+    {"indice":8,"quadro":"(&M99b00000000000000074E)","a":"(M?f)"},
+    {"indice":9,"quadro":"(&M99b00000000000000084F)","a":"(M?f)"},
+    {"indice":10,"quadro":"(&M99b000000000000000950)","a":"(M?f)"},
+    {"indice":11,"quadro":"(&M99b000000000000000A58)","a":"(M?f)"},
+    {"indice":12,"quadro":"(&M99b000000000000000B59)","a":"(M?f)"},
+    {"indice":13,"quadro":"(&M99b000000000000000C5A)","a":"(M?f)"},
+    {"indice":14,"quadro":"(&M99b000000000000000D5B)","a":"(M?f)"},
+    {"indice":15,"quadro":"(&M99b000000000000000E5C)","a":"(M?f)"},
+    {"indice":16,"quadro":"(&M99b000000000000000F5D)","a":"(M?f)"},
+    {"indice":17,"quadro":"(&M99b000000000000001048)","a":"(M?f)"},
+    {"indice":18,"quadro":"(&M99b000000000000001149)","a":"(M?f)"},
+    {"indice":19,"quadro":"(&M99b00000000000000124A)","a":"(M?f)"},
+    {"indice":20,"quadro":"(&M99b00000000000000134B)","a":"(M?f)"},
+    {"indice":21,"quadro":"(&M99b00000000000000144C)","a":"(M?f)"},
+    {"indice":22,"quadro":"(&M99b00000000000000154D)","a":"(M?f)"},
+    {"indice":23,"quadro":"(&M99c000000000000000048)","a":"(M?f)"}
+  ]
+}

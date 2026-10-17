@@ -1,0 +1,34 @@
+{
+  "formato": "pump-sim/oraculo@1",
+  "caso": "DIFF-07",
+  "titulo": "Layouts do registro",
+  "comparacao": "bytes",
+  "sessao": "diff-r10",
+  "roteiroHash": "sha256:91abe150624d05cd2712f93c621c9330",
+  "origemHash": "relatório da bancada",
+  "acoesA": [
+    {"passo":"drenar","ok":true,"detalhe":"3 registro(s) lido(s)"},
+    {"passo":"drenar","ok":true,"detalhe":"1 registro(s) lido(s)"},
+    {"passo":"config_padrao","ok":true},
+    {"passo":"canal {\"n\":1}","ok":true},
+    {"passo":"bico_radio {\"lado\":\"esquerdo\",\"alt\":false}","ok":true},
+    {"passo":"retirar {\"lado\":\"esquerdo\"}","ok":true,"detalhe":"botão esquerdo 'Retirar Bico' -> 'Abastecendo..'"},
+    {"passo":"canal {\"n\":1}","ok":true},
+    {"passo":"bico_radio {\"lado\":\"esquerdo\",\"alt\":false}","ok":true},
+    {"passo":"recolocar {\"lado\":\"esquerdo\"}","ok":true,"detalhe":"botão esquerdo 'Abastecendo..' -> 'Concluindo..'"},
+    {"passo":"dip {\"n\":3,\"ligado\":false}","ok":true},
+    {"passo":"dip {\"n\":3,\"ligado\":true}","ok":true}
+  ],
+  "passos": [
+    {"indice":0,"quadro":"(&E0400000000)","a":"((TL0400000000AC)"},
+    {"indice":1,"quadro":"(&c00411223349)","a":null},
+    {"indice":2,"quadro":"(&P04000100FB)","a":"(P04)"},
+    {"indice":3,"quadro":"(&A)","a":"(00010000008911233A00060417185610000100000000890066)","ignorarFim":2,"mascara":[[19,23],[27,31]],"sensivel":["relogio","bateria"]},
+    {"indice":4,"quadro":"(&A67)","a":"(A00010000008911233A0006041718561000010000000089000000000000000000000100C8)","ignorarFim":2,"mascara":[[20,24],[28,32]],"sensivel":["relogio","bateria"]},
+    {"indice":5,"quadro":"(&@66)","a":"(@00010000008911233A000604171856100001000000008900000000000000000000000000000000000006)","ignorarFim":2,"mascara":[[20,24],[28,32]],"sensivel":["relogio","bateria"]},
+    {"indice":6,"quadro":"(&A299)","a":"(a2G9999999900010000008911233A0006041718561026000001000000008900000000001133220000000000000000000000000000000000000000005C)","ignorarFim":2,"mascara":[[30,34],[38,42]],"sensivel":["relogio","bateria"]},
+    {"indice":7,"quadro":"(&A39A)","a":"(a3G9999999900010000008911233A00060426101718562000000100000000890000000000113322000000000000000000000000000000000000000000001F)","ignorarFim":2,"mascara":[[30,34],[42,48]],"sensivel":["relogio","bateria"]},
+    {"indice":8,"quadro":"(&A49B)","a":null},
+    {"indice":9,"quadro":"(&A)","a":"(00010000008911233A00060417185610000100000000890066)","ignorarFim":2,"mascara":[[19,23],[27,31]],"sensivel":["relogio","bateria"]}
+  ]
+}

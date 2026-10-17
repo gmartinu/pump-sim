@@ -1,0 +1,29 @@
+{
+  "formato": "pump-sim/oraculo@1",
+  "caso": "DIFF-09",
+  "titulo": "Resposta padrão TG do &T",
+  "comparacao": "bytes",
+  "sessao": "diff-r10",
+  "roteiroHash": "sha256:703569a2f0a76f8fc95af8b5cc3bd6c1",
+  "origemHash": "relatório da bancada",
+  "acoesA": [
+    {"passo":"drenar","ok":true,"detalhe":"1 registro(s) lido(s)"},
+    {"passo":"config_padrao","ok":true},
+    {"passo":"canal {\"n\":1}","ok":true},
+    {"passo":"bico_radio {\"lado\":\"esquerdo\",\"alt\":false}","ok":true},
+    {"passo":"retirar {\"lado\":\"esquerdo\"}","ok":true,"detalhe":"botão esquerdo 'Retirar Bico' -> 'Abastecendo..'"},
+    {"passo":"canal {\"n\":1}","ok":true},
+    {"passo":"bico_radio {\"lado\":\"esquerdo\",\"alt\":false}","ok":true},
+    {"passo":"recolocar {\"lado\":\"esquerdo\"}","ok":true,"detalhe":"botão esquerdo 'Abastecendo..' -> 'Concluindo..'"}
+  ],
+  "passos": [
+    {"indice":0,"quadro":"(&P04000100FB)","a":"(P04)"},
+    {"indice":1,"quadro":"(&T99P3C)","a":"(TG99000100008E)"},
+    {"indice":2,"quadro":"(&I)","a":null},
+    {"indice":3,"quadro":"(&T99P3C)","a":"(TG99000100018F)"},
+    {"indice":4,"quadro":"(&T99N3A)","a":"(TG99000100018F)"},
+    {"indice":5,"quadro":"(&T08P32)","a":"(TG080001000185)"},
+    {"indice":6,"quadro":"(&T08N30)","a":"(TG080001000185)"},
+    {"indice":7,"quadro":"(&TB0I35)","a":"(TGB0000100018F)"}
+  ]
+}

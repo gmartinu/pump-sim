@@ -1,0 +1,24 @@
+{
+  "formato": "pump-sim/oraculo@1",
+  "caso": "DIFF-15",
+  "titulo": "?C e permissão no byte inteiro",
+  "comparacao": "bytes",
+  "sessao": "diff-r10",
+  "roteiroHash": "sha256:d4a59aee64039661b5b77cf0725e8bdb",
+  "origemHash": "relatório da bancada",
+  "acoesA": [
+    {"passo":"drenar","ok":true,"detalhe":"1 registro(s) lido(s)"},
+    {"passo":"config_padrao","ok":true}
+  ],
+  "passos": [
+    {"indice":0,"quadro":"(?C00101010035)","a":null},
+    {"indice":1,"quadro":"(?C0010107003B)","a":null},
+    {"indice":2,"quadro":"(?C0010114013A)","a":null},
+    {"indice":3,"quadro":"(?F27G0000000000000027000000010000000140)","a":"(FG000001000001000000000000002700000001000000012743)"},
+    {"indice":4,"quadro":"(?F67G0000000000000067000000010000000148)","a":"(FG00000200000200000000000000670000000100000001674D)"},
+    {"indice":5,"quadro":"(&S)","a":"(SBLFFLLFFLLFFLLFFLLFFLLFFLLFFLLFFFFDD6V3.7M1.0G89)","ignorarFim":2,"sensivel":["bateria"]},
+    {"indice":6,"quadro":"(&S)","a":"(SBLFFLLFFLLFFLLFFLLFFLLFFLLFFLLFFFFDD6V3.7M1.0G89)","ignorarFim":2,"sensivel":["bateria"]},
+    {"indice":7,"quadro":"(&M04I20)","a":"(M04)"},
+    {"indice":8,"quadro":"(&M04L23)","a":"(M04)"}
+  ]
+}

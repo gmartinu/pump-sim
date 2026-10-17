@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run ci
+
+  driver-go:
+    # tools/driver-go (the bench UI driver, DECISIONS §30): the pure parts are tested on Linux; the
+    # Windows-only files (Win32 calls) are vetted by cross-compiling for the 32-bit target it ships as.
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: tools/driver-go
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: tools/driver-go/go.mod
+          cache-dependency-path: tools/driver-go/go.sum
+      - run: go vet ./...
+      - run: GOOS=windows GOARCH=386 go vet ./...
+      - run: go test ./...

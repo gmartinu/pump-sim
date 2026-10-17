@@ -1,0 +1,23 @@
+{
+  "formato": "pump-sim/oraculo@1",
+  "caso": "DIFF-05",
+  "titulo": "F × L no repouso",
+  "comparacao": "bytes",
+  "sessao": "diff-r10",
+  "roteiroHash": "sha256:75fe960e651d6b72523495e8b931bad1",
+  "origemHash": "relatório da bancada",
+  "acoesA": [
+    {"passo":"drenar","ok":true,"detalhe":"0 registro(s) lido(s)"},
+    {"passo":"config_padrao","ok":true},
+    {"passo":"dip {\"n\":1,\"ligado\":true}","ok":true},
+    {"passo":"dip {\"n\":1,\"ligado\":false}","ok":true}
+  ],
+  "passos": [
+    {"indice":0,"quadro":"(&S)","a":"(SLLFFLLFFLLFFLLFFLLFFLLFFLLFFLLFFFFDD6V3.7M1.0G7F)","ignorarFim":2,"sensivel":["bateria"]},
+    {"indice":1,"quadro":"(&CW013A030200BA)","a":null},
+    {"indice":2,"quadro":"(&S)","a":"(SLLLFLLFFLLFFLLFFLLFFLLFFLLFFLLFFFFDD6V3.7M1.0G7F)","ignorarFim":2,"sensivel":["bateria"]},
+    {"indice":3,"quadro":"(&CW013A030000B8)","a":null},
+    {"indice":4,"quadro":"(&S)","a":"(SLLFFLLFFLLFFLLFFLLFFLLFFLLFFLLFFFFDD6V3.7M1.0G7F)","ignorarFim":2,"sensivel":["bateria"]},
+    {"indice":5,"quadro":"(&S)","a":"(SLLFFLLFFLLFFLLFFLLFFLLFFLLFFLLFFFFDD6V3.7M1.0G7F)","ignorarFim":2,"sensivel":["bateria"]}
+  ]
+}

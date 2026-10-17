@@ -1,0 +1,25 @@
+{
+  "formato": "pump-sim/oraculo@1",
+  "caso": "BANCADA-1710",
+  "titulo": "Bancada Windows 17/10 (2.7.2 real, estado recém-aberto)",
+  "comparacao": "bytes",
+  "sessao": "diff-r10",
+  "roteiroHash": "sha256:416f264638509e1168fcf60efbe10fc0",
+  "origemHash": "relatório da bancada",
+  "acoesA": [
+    {"passo":"drenar","ok":true,"detalhe":"0 registro(s) lido(s)"}
+  ],
+  "passos": [
+    {"indice":0,"quadro":"(&S)","a":"(SLLFFLLFFLLFFLLFFLLFFLLFFLLFFLLFFFFDD6V3.7M1.0G7E)","ignorarFim":2,"sensivel":["bateria"]},
+    {"indice":1,"quadro":"(&U040058991E)","a":"(U04)"},
+    {"indice":2,"quadro":"(&T01l47)","a":"(TG01000000007C)"},
+    {"indice":3,"quadro":"(&T01L27)","a":"(TG01000000007C)"},
+    {"indice":4,"quadro":"(&T04l4A)","a":"(Tl04000000000004)"},
+    {"indice":5,"quadro":"(&T08l4E)","a":"(Tl08000000000008)"},
+    {"indice":6,"quadro":"(&T04L2A)","a":"(TL040000000084)"},
+    {"indice":7,"quadro":"(&T08L2E)","a":"(TL080000000088)"},
+    {"indice":8,"quadro":"(&A)","a":"(0)"},
+    {"indice":9,"quadro":"(&A67)","a":"(0)"},
+    {"indice":10,"quadro":"(&T04L00)","a":null}
+  ]
+}
