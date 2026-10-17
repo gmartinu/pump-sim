@@ -169,15 +169,25 @@
       <section class="sec" id="quickstart">
         <div class="wrap qs">
           <div class="qs-l">
-            <div><span class="k" data-i18n="qs.k">Início rápido</span><h2 class="h-sec" data-i18n="qs.h">Três comandos.</h2></div>
-            <p class="p-sec" data-i18n="qs.p">macOS, Linux ou Windows com Node 22+. No Windows, o .exe dispensa tudo isso: dois cliques e a interface abre.</p>
+            <div><span class="k" data-i18n="qs.k">Início rápido</span><h2 class="h-sec" data-i18n="qs.h">Um comando.</h2></div>
+            <p class="p-sec" data-i18n="qs.p">macOS ou Linux com Node 22+: um npx e a interface abre. No Windows, o .exe dispensa o Node: dois cliques. Para mexer no código, use a opção do código-fonte.</p>
             <span class="seg qs-tabs" role="tablist">
-              <button type="button" role="tab" class="on" aria-selected="true" aria-controls="qs-cli" data-qs-tab="cli" data-i18n="qs.tabs.0.t">CLI</button>
+              <button type="button" role="tab" class="on" aria-selected="true" aria-controls="qs-npx" data-qs-tab="npx" data-i18n="qs.tabs.0.t">npx</button>
               <button type="button" role="tab" aria-selected="false" aria-controls="qs-win" data-qs-tab="win" data-i18n="qs.tabs.1.t">Windows .exe</button>
+              <button type="button" role="tab" aria-selected="false" aria-controls="qs-cli" data-qs-tab="cli" data-i18n="qs.tabs.2.t">Do código-fonte</button>
             </span>
           </div>
           <div class="qs-r">
-            <div class="steps" id="qs-cli" role="tabpanel">
+            <div class="steps" id="qs-npx" role="tabpanel">
+              <div class="step">
+                <span class="sn">1</span>
+                <div class="st-b">
+                  <div class="st-t" data-i18n="qs.npx.t">Rodar com npx (Mac/Linux, Node 22+)</div>
+                  <div class="cblock"><span class="pr">$</span><span class="tx" data-copy-src>npx pump-sim --profile simulador-2.7.2 --ui</span><button type="button" class="cpb" data-copy aria-label="Copiar"><span class="ms">content_copy</span></button></div>
+                </div>
+              </div>
+            </div>
+            <div class="steps" id="qs-cli" role="tabpanel" hidden>
               <div class="step">
                 <span class="sn">1</span>
                 <div class="st-b">
@@ -248,7 +258,7 @@
         </nav>
         <div class="disc">
           <p data-i18n="foot.disc">Projeto independente. Não é afiliado à Companytec nem endossado por ela. Companytec, CBC, Horustech e Concept são marcas de seus respectivos titulares.</p>
-          <p class="sigl"><span data-i18n="foot.signA">Assinatura de código gratuita por </span><a href="https://about.signpath.io">SignPath.io</a><span data-i18n="foot.signB">, certificado da </span><a href="https://signpath.org">SignPath Foundation</a> · <a href="https://github.com/gmartinu/pump-sim/blob/main/CODE_SIGNING.md" data-i18n="foot.signL">Política de assinatura</a></p>
+          <p class="sigl"><span data-i18n="foot.signA">Assinatura de código via SignPath Foundation pendente: os releases atuais não são assinados · </span><a href="https://github.com/gmartinu/pump-sim/blob/main/CODE_SIGNING.md" data-i18n="foot.signL">Política de assinatura</a></p>
         </div>
       </div>
     </footer>

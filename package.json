@@ -2,6 +2,19 @@
   "name": "pump-sim",
   "version": "1.0.0",
   "description": "Open-source simulator of Companytec fuel concentrators (CBC/Horustech/Concept), faithful to the protocol and to SimuladorCBC 2.7.2.",
+  "keywords": [
+    "companytec",
+    "horustech",
+    "cbc",
+    "identfid",
+    "fuel",
+    "gas-station",
+    "fuel-pump",
+    "simulator",
+    "concentrator",
+    "protocol",
+    "mcp"
+  ],
   "license": "MIT",
   "author": "Gabriel Martinusso",
   "repository": {
@@ -20,6 +33,7 @@
   "types": "dist/index.d.ts",
   "files": [
     "dist",
+    "!dist/**/*.map",
     "ui"
   ],
   "engines": {
@@ -33,7 +47,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "start": "node dist/cli.js",
-    "ci": "npm run typecheck && npm run lint && npm test"
+    "ci": "npm run typecheck && npm run lint && npm test",
+    "prepublishOnly": "npm run ci && npm run build"
   },
   "devDependencies": {
     "@eslint/js": "9.39.5",

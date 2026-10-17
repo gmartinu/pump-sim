@@ -30,17 +30,29 @@ one port at a time (2001/1771/7002) and a single pointer on `simulador-2.7.2`.
 | `horustech-48` | Horustech in Companytec protocol, 48 positions, 12 channels | DT435 p.22, DT277 p.7 | per the manual, not validated on hardware |
 | `concept-48` | Concept (= `horustech-48`) | DT432 p.4 | per the manual, not validated on hardware |
 
-## Downloads
+## Quickstart
 
-The Windows executable `pump-sim-win-x64.exe` (with its `.sha256`) is attached to each
-[GitHub release](https://github.com/gmartinu/pump-sim/releases). On macOS and Linux, run it from
-source with Node 22 (below).
+macOS / Linux (Node 22+), no install:
+
+```sh
+npx pump-sim --profile simulador-2.7.2 --ui
+```
+
+Windows: download `pump-sim-win-x64.exe` (with its `.sha256`) from the
+[latest GitHub release](https://github.com/gmartinu/pump-sim/releases/latest) and double-click it;
+no Node needed.
+
+From source (to work on the code):
+
+```sh
+git clone https://github.com/gmartinu/pump-sim && cd pump-sim
+npm install && npm run build && npm link
+pump-sim --profile simulador-2.7.2 --ui
+```
 
 ## Running
 
 ```sh
-npm install
-npm run build
 pump-sim --profile simulador-2.7.2                 # listens on 2001 (or --ports 1771 | 7002)
 pump-sim --profile horustech-48                    # 2001, 1771 and 857 at the same time
 pump-sim --profile cbc-32 --ports 2001,1771 --control 7070 --record trafego.jsonl
@@ -48,7 +60,7 @@ pump-sim mcp --control http://127.0.0.1:7070       # stdio MCP server
 pump-sim --listar-perfis
 ```
 
-(`pump-sim` = `node dist/cli.js`.) Quick test: `printf '(&S)' | nc 127.0.0.1 2001`.
+(`pump-sim` = `npx pump-sim`, or `node dist/cli.js` from source.) Quick test: `printf '(&S)' | nc 127.0.0.1 2001`.
 CLI logs go to stderr. `--relogio-manual` stops the clock: time only moves through the
 `avancar_tempo` command, which makes a client's CI deterministic.
 

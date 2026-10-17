@@ -10,6 +10,7 @@
     'npm install && npm run build && npm link',
     'pump-sim --profile simulador-2.7.2 --ui',
   ];
+  const NPX = 'npx pump-sim --profile simulador-2.7.2 --ui';
   const TOOLS = ['gerar_abastecimentos', 'apresentar_cartao', 'injetar_falha', 'avancar_tempo', 'set_perfil', 'start_recording'];
   const NC = "printf '(&S)' | nc 127.0.0.1 2001";
 
@@ -56,9 +57,10 @@
         recF: ['--record trafego.jsonl', 'pump-sim replay servidor trafego.jsonl', 'pump-sim diff --a <alvo>:2001'],
       },
       qs: {
-        k: 'Início rápido', h: 'Três comandos.',
-        p: 'macOS, Linux ou Windows com Node 22+. No Windows, o .exe dispensa tudo isso: dois cliques e a interface abre.',
-        tabs: [{ t: 'CLI' }, { t: 'Windows .exe' }],
+        k: 'Início rápido', h: 'Um comando.',
+        p: 'macOS ou Linux com Node 22+: um npx e a interface abre. No Windows, o .exe dispensa o Node: dois cliques. Para mexer no código, use a opção do código-fonte.',
+        tabs: [{ t: 'npx' }, { t: 'Windows .exe' }, { t: 'Do código-fonte' }],
+        npx: { t: 'Rodar com npx (Mac/Linux, Node 22+)', c: NPX },
         steps: [
           { n: '1', t: 'Clonar', c: CMDS[0] },
           { n: '2', t: 'Instalar e compilar', c: CMDS[1] },
@@ -79,7 +81,7 @@
         tag: 'Simulador open source de concentrador de combustível.',
         lic: 'Licença MIT · © 2026 Gabriel Martinusso',
         links: [{ t: 'GitHub' }, { t: 'Releases' }, { t: 'Portfólio' }, { t: 'thermal-print' }],
-        signA: 'Assinatura de código gratuita por ', signB: ', certificado da ', signL: 'Política de assinatura',
+        signA: 'Assinatura de código via SignPath Foundation pendente: os releases atuais não são assinados · ', signL: 'Política de assinatura',
         disc: 'Projeto independente. Não é afiliado à Companytec nem endossado por ela. Companytec, CBC, Horustech e Concept são marcas de seus respectivos titulares.',
       },
     },
@@ -125,9 +127,10 @@
         recF: ['--record trafego.jsonl', 'pump-sim replay servidor trafego.jsonl', 'pump-sim diff --a <target>:2001'],
       },
       qs: {
-        k: 'Quickstart', h: 'Three commands.',
-        p: 'macOS, Linux or Windows with Node 22+. On Windows the .exe skips all of this: double-click it and the interface opens.',
-        tabs: [{ t: 'CLI' }, { t: 'Windows .exe' }],
+        k: 'Quickstart', h: 'One command.',
+        p: 'macOS or Linux with Node 22+: one npx and the interface opens. On Windows the .exe needs no Node: double-click it. To work on the code, use the from-source option.',
+        tabs: [{ t: 'npx' }, { t: 'Windows .exe' }, { t: 'From source' }],
+        npx: { t: 'Run with npx (Mac/Linux, Node 22+)', c: NPX },
         steps: [
           { n: '1', t: 'Clone', c: CMDS[0] },
           { n: '2', t: 'Install and build', c: CMDS[1] },
@@ -148,7 +151,7 @@
         tag: 'Open-source fuel concentrator simulator.',
         lic: 'MIT license · © 2026 Gabriel Martinusso',
         links: [{ t: 'GitHub' }, { t: 'Releases' }, { t: 'Portfolio' }, { t: 'thermal-print' }],
-        signA: 'Free code signing provided by ', signB: ', certificate by ', signL: 'Code signing policy',
+        signA: 'Code signing via SignPath Foundation is pending: current releases are unsigned · ', signL: 'Code signing policy',
         disc: 'Independent project. Not affiliated with or endorsed by Companytec. Companytec, CBC, Horustech and Concept are trademarks of their respective owners.',
       },
     },

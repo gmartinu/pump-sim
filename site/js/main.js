@@ -219,9 +219,10 @@
 
     $$('[data-qs-tab]').forEach((b) =>
       b.addEventListener('click', () => {
-        const win = b.dataset.qsTab === 'win';
-        $('#qs-cli').hidden = win;
-        $('#qs-win').hidden = !win;
+        const sel = b.dataset.qsTab;
+        $$('[data-qs-tab]').forEach((x) => {
+          $('#qs-' + x.dataset.qsTab).hidden = x.dataset.qsTab !== sel;
+        });
         $$('[data-qs-tab]').forEach((x) => {
           const on = x === b;
           x.classList.toggle('on', on);

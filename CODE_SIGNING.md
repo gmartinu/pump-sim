@@ -1,15 +1,24 @@
 # Code signing policy
 
+**Status: signing is not active yet.** The SignPath Foundation application is pending, and current
+releases (including 1.0.0) are **unsigned**: Windows SmartScreen warns on first run; verify the
+download against the `.sha256` attached to the release. This document states the policy that
+**will** apply once the application is approved.
+
+<!-- Maintainer note: once SignPath Foundation approves the project, replace the status paragraph
+above with the attribution sentence below (and restore it in the site footer, site/index.html +
+site/js/i18n.js):
 Free code signing provided by [SignPath.io](https://about.signpath.io), certificate by
 [SignPath Foundation](https://signpath.org).
+-->
 
-## What is signed
+## What will be signed
 
 Only the Windows executable `pump-sim-win-x64.exe` attached to a
 [GitHub release](https://github.com/gmartinu/pump-sim/releases) of this repository. Nothing else
 (no npm package, no third-party binary, no build made outside CI) is signed under this policy.
 
-## How a signed binary is produced
+## How a signed binary will be produced
 
 - Binaries are built **from this repository only, by GitHub Actions only**
   ([`.github/workflows/release.yml`](.github/workflows/release.yml)), on GitHub-hosted runners.
