@@ -113,9 +113,10 @@ on another machine, or cancel for same-machine use.
 
 ### Releases
 
-The npm package `pump-sim` is published only by the release workflow on a `v*` tag, through npm
-Trusted Publishing (no long-lived token) with a provenance attestation linking each version to the
-commit and workflow run that built it.
+The npm package `pump-sim` is released only through the release workflow on a `v*` tag: CI stages
+the version with `npm stage publish` over npm Trusted Publishing (no long-lived token, stage-only
+permission) with a provenance attestation linking it to the commit and workflow run that built it,
+and a maintainer approves it, with 2FA, in the Staged Packages tab on npmjs.com before it goes live.
 
 ### Code signing
 

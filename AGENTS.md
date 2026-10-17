@@ -93,8 +93,9 @@ Horustech, Concept). It speaks the protocol like SimuladorCBC 2.7.2 and like the
   ([CODE_SIGNING.md](CODE_SIGNING.md)).
 - Release binaries are only built by the release workflow; until SignPath is configured they are
   unsigned and the release notes say so. Never upload a locally built binary as a release asset.
-- npm releases are only published by the release workflow (`npm` job, Trusted Publishing with
-  provenance). Never run `npm publish` locally.
+- npm releases are only staged by the release workflow (`npm` job, `npm stage publish` over
+  Trusted Publishing with provenance); a maintainer approves each staged version on npmjs.com.
+  Never run `npm publish` or `npm stage publish` locally.
 
 ## Dependencies
 
