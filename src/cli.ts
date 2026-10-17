@@ -17,6 +17,7 @@ import { lerAlvo } from './net/cliente-tcp.js';
 import { IDS_PERFIS, type PerfilId, obterPerfil } from './profiles/index.js';
 import { lerGravacao } from './recorder/formato.js';
 import { ServidorReplay, replayCliente } from './recorder/replay.js';
+import { PORTA_CONTROLE_PADRAO, abrirControleComFallback, consoleUtf8, deveEsperarEnter, mensagemErroFatal, mensagemFalhaControle } from './ui/inicio.js';
 import { comoAbrir } from './ui/navegador.js';
 
 const AJUDA = `pump-sim — simulador de concentrador Companytec
@@ -56,13 +57,14 @@ Uso:
   --record             grava todo o tráfego bruto em JSONL desde o início
   --relogio-manual     relógio parado; o tempo só anda pelo comando avancar_tempo (CI determinístico)
   --sem-config-padrao  não carrega 8 canais × 2 endereços × 2 bicos
-  --ui                 sobe a API de controle (7070 se --control faltar), imprime a URL da interface
-                       e abre numa janela do Edge/Chrome; porta TCP ocupada não aborta (a UI tenta de novo)
+  --ui                 sobe a API de controle (sem --control: a 1ª porta livre de 7070 a 7089), imprime a
+                       URL da interface e abre numa janela do Edge/Chrome; porta TCP ocupada não aborta
+                       (a UI tenta de novo); porta de controle ocupada não aborta (segue sem UI)
   --sem-abrir          com --ui, só imprime a URL
   --lembrar            parte do último perfil/porta/equipamento salvo e salva as mudanças
   --gravacoes          pasta das gravações da UI (padrão: ./gravacoes)
 
-  Executável do Windows (SEA) sem argumentos = --ui --lembrar.
+  Executável do Windows (SEA) sem argumentos = --ui --lembrar; num erro fatal, espera Enter para fechar.
 `;
 
 interface Opcoes {
@@ -209,14 +211,26 @@ async function rodarSimulador(o: Opcoes): Promise<void> {
   if (rt.erroPorta) log(`[pump-sim] porta ${rt.erroPorta.porta} ocupada (${rt.erroPorta.codigo}): simulando sem porta aberta; tente de novo pela UI`);
   if (rt.gravador?.arquivo) log(`[pump-sim] gravando tráfego em ${rt.gravador.arquivo}`);
   if (lembrar && perfilId === salvo) await aplicarConfig(hub, ultima);
-  const ctl = um(o, '--control', '--controle') ?? (ui ? '7070' : undefined);
+  const ctlExplicito = um(o, '--control', '--controle');
+  const ctl = ctlExplicito ?? (ui ? String(PORTA_CONTROLE_PADRAO) : undefined);
   let fecharCtl: (() => Promise<void>) | null = null;
   if (ctl) {
-    const s = await abrirServidorControle(hub, Number(ctl), um(o, '--control-host') ?? '127.0.0.1');
-    fecharCtl = s.fechar;
-    log(`[pump-sim] API de controle em ${s.url} (WS ${s.url.replace('http', 'ws')}/ws)`);
-    log(`[pump-sim] UI em ${s.url}/`);
-    if (ui && !tem(o, '--sem-abrir')) abrirJanela(`${s.url}/`);
+    const porta = Number(ctl);
+    if (!Number.isInteger(porta) || porta < 0 || porta > 65535) throw new Error(`--control: porta inválida (${ctl})`);
+    const hostCtl = um(o, '--control-host') ?? '127.0.0.1';
+    // Explicit --control: one attempt. --ui default: first free port in 7070..7089 (DECISIONS §31).
+    const r = await abrirControleComFallback((p) => abrirServidorControle(hub, p, hostCtl), { porta, explicita: ctlExplicito !== undefined });
+    if (r.ok) {
+      const s = r.servidor;
+      fecharCtl = s.fechar;
+      if (r.porta !== porta) log(`[pump-sim] porta ${porta} ocupada; usando ${r.porta}`);
+      log(`[pump-sim] API de controle em ${s.url} (WS ${s.url.replace('http', 'ws')}/ws)`);
+      log(`[pump-sim] UI em ${s.url}/`);
+      if (ui && !tem(o, '--sem-abrir')) abrirJanela(`${s.url}/`);
+    } else {
+      // The simulator itself keeps serving its TCP ports; only the API/UI is missing.
+      log(mensagemFalhaControle(r, ctlExplicito !== undefined));
+    }
   }
   const pararVigia = lembrar ? vigiarConfig(hub) : null;
   const t = manual ? null : setInterval(() => hub.tick(), 50);
@@ -353,10 +367,9 @@ function ehExecutavel(): boolean {
   }
 }
 
-async function main(): Promise<void> {
-  const argv = process.argv.slice(2);
+async function main(argv: string[]): Promise<void> {
   // Double click on the Windows executable: simulator on 2001 + UI window + last configuration.
-  const o = argumentos(argv.length === 0 && ehExecutavel() ? ['--ui', '--lembrar'] : argv);
+  const o = argumentos(argv.length === 0 && executavel ? ['--ui', '--lembrar'] : argv);
   if (tem(o, '--help', '-h')) {
     process.stdout.write(AJUDA);
     return;
@@ -383,7 +396,24 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch((e: unknown) => {
-  process.stderr.write(`${e instanceof Error ? e.message : String(e)}\n`);
+/** Double click on the executable: keep the console open on a fatal error so it can be read. */
+async function esperarEnter(): Promise<void> {
+  const rl = readline.createInterface({ input: process.stdin, output: process.stderr });
+  try {
+    await rl.question('Pressione Enter para fechar');
+  } finally {
+    rl.close();
+  }
+}
+
+const argvCli = process.argv.slice(2);
+const executavel = ehExecutavel();
+// The Windows executable prints Portuguese text to a console that defaults to cp850 (DECISIONS §31).
+if (executavel) consoleUtf8();
+main(argvCli).catch(async (e: unknown) => {
+  process.stderr.write(`${mensagemErroFatal(e)}\n`);
+  if (deveEsperarEnter({ executavel, semArgumentos: argvCli.length === 0, tty: Boolean(process.stdin.isTTY && process.stderr.isTTY) })) {
+    await esperarEnter().catch(() => undefined);
+  }
   process.exit(1);
 });

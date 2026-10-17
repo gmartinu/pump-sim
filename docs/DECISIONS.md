@@ -1702,3 +1702,19 @@ Tests: changed with this citation: `test/diff-wine.test.ts` (bound 0.1; the #26 
 out-of-bound witnesses at 10%: volume +12% and an amount 1 unit over; the totalizer boundary 310 mL in / 350 mL out for a 3,05 L
 record; `&V` 555 in / 556 out of 500). New: the icon-subset test in `test/ui.test.ts` and the no-Markdown guard in
 `test/site-sem-origem-externa.test.ts`.
+
+## 31. Windows executable startup: control-port fallback, Enter on fatal error, UTF-8 console (17/10)
+
+Source: a field report from a Windows PC running the v1.0.1 executable (double click = `--ui --lembrar`): with 127.0.0.1:7070
+already taken, the process printed `listen EADDRINUSE: address already in use 127.0.0.1:7070`, exited with code 1 and the
+console window closed before it could be read; the console also showed the Portuguese text as mojibake (UTF-8 bytes in a cp850
+console). An occupied simulator TCP port was already non-fatal under `--ui` (U8).
+
+| # | Decision | Where |
+| --- | --- | --- |
+| W1 | `--ui` **without** `--control` tries 7070, 7071, ... 7089 and takes the first port whose `listen` does not fail with `EADDRINUSE`/`EACCES` (any other error stops the scan). It prints `porta 7070 ocupada; usando <p>`, then the usual `API de controle em` / `UI em <url>/` lines, and opens the window on the chosen URL. No port is reserved: the bench driver's 7071 is skipped only when it is in use, like any other port. `pump-sim mcp` still defaults to `http://127.0.0.1:7070`; after a fallback, pass the printed URL to `--control` | `src/ui/inicio.ts` (`abrirControleComFallback`), `src/cli.ts` |
+| W2 | An **explicit** `--control <p>` is honoured as is (one attempt, no scan). When it fails, the process does not exit: it logs `não consegui abrir a API de controle/UI (...)` and the simulator keeps serving its TCP ports without API/UI. The same message ends a fully occupied 7070..7089 scan. A non-integer or out-of-range `--control` is still a fatal argument error | `src/ui/inicio.ts` (`mensagemFalhaControle`), `src/cli.ts` |
+| W3 | A fatal startup error is printed in Portuguese (`[pump-sim] erro ao iniciar: ...`). The process waits for Enter (`Pressione Enter para fechar`) only when it is the single executable, was started with **no arguments** (double click) and stdin/stderr are a TTY; every other run (npm CLI, scripts, pipes, explicit arguments) keeps the immediate exit with code 1 | `src/ui/inicio.ts` (`deveEsperarEnter`, `mensagemErroFatal`), `src/cli.ts` |
+| W4 | Inside the single executable on Windows, startup runs `chcp 65001 >NUL` in a `cmd.exe` child that shares the console (console code page is per console, so it applies to the parent), best effort and without a new dependency. Outside the executable (npm CLI) the code page is left to the user's terminal | `src/ui/inicio.ts` (`consoleUtf8`), `src/cli.ts` |
+
+Tests: `test/inicio.test.ts` (fallback past an occupied 7070 with a real listener, explicit port busy returns a failure instead of throwing, the scan stops on a non-port error, the Enter decision table, the CLI process staying alive with an explicit busy `--control`).

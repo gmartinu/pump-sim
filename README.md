@@ -98,7 +98,8 @@ Identfid, Diff, Gravação & agentes. No build step: the files in `ui/` are plai
 ## Windows executable
 
 One file, `pump-sim-win-x64.exe` (Node 22.20.0 single executable application with the UI inside):
-double-click it and it starts as `--ui --lembrar` (simulator on 2001, UI on `http://127.0.0.1:7070/`
+double-click it and it starts as `--ui --lembrar` (simulator on 2001, UI on `http://127.0.0.1:7070/`,
+or the first free port up to 7089 when 7070 is taken, as the console prints,
 in an Edge app window, then Chrome, then the default browser; last configuration in
 `%APPDATA%\pump-sim\ultima-config.json`). Any argument works as in the CLI
 (`pump-sim-win-x64.exe --profile cbc-32 --ports 2001`). The console window is the simulator's log;
