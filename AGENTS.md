@@ -89,8 +89,10 @@ Horustech, Concept). It speaks the protocol like SimuladorCBC 2.7.2 and like the
 ## Releases
 
 - Only through the release workflow (`.github/workflows/release.yml`): tag `v*` equal to the
-  `package.json` version, built by GitHub Actions, signed via SignPath ([CODE_SIGNING.md](CODE_SIGNING.md)).
-- Never upload an unsigned or locally built binary as a release asset.
+  `package.json` version, built by GitHub Actions, signed via SignPath once configured
+  ([CODE_SIGNING.md](CODE_SIGNING.md)).
+- Release binaries are only built by the release workflow; until SignPath is configured they are
+  unsigned and the release notes say so. Never upload a locally built binary as a release asset.
 
 ## Dependencies
 

@@ -95,17 +95,19 @@ Chrome) and commit the outputs.
 **A local build is not signed.** On first run Windows SmartScreen shows "O Windows protegeu o
 computador" ("Windows protected your PC"): click "Mais informações" ("More info") → "Executar assim
 mesmo" ("Run anyway"). A file downloaded from a browser or chat may also need right-click →
-Properties → "Desbloquear" ("Unblock"). Release builds are signed (see Code signing). Windows Firewall may ask about port 2001 (the simulator
+Properties → "Desbloquear" ("Unblock"). Release builds are not code-signed yet either (see Code signing). Windows Firewall may ask about port 2001 (the simulator
 listens on `0.0.0.0`; the UI and control API stay on loopback): allow private networks for a bench PDV
 on another machine, or cancel for same-machine use.
 
 ### Code signing
 
-Release executables are built by GitHub Actions from this repository only and signed through
-SignPath: free code signing provided by [SignPath.io](https://about.signpath.io), certificate by
-[SignPath Foundation](https://signpath.org). Roles, approval and privacy statement:
-[CODE_SIGNING.md](CODE_SIGNING.md). A new certificate may still show a SmartScreen warning until it
-builds reputation.
+Release executables are built by GitHub Actions from this repository only. **They are not
+code-signed yet**: the SignPath Foundation application is pending, so Windows SmartScreen warns on
+first run (see above) and each release says so in its notes; verify the download against its
+`.sha256`. Once approved, releases will be signed through SignPath: free code signing provided by
+[SignPath.io](https://about.signpath.io), certificate by [SignPath Foundation](https://signpath.org).
+Roles, approval and privacy statement: [CODE_SIGNING.md](CODE_SIGNING.md). A new certificate may
+still show a SmartScreen warning until it builds reputation.
 
 ## Control API (`--control <port>`)
 

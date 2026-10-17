@@ -11,7 +11,7 @@ import { CATALOGO, defComando, schemaComSimId } from '../control/catalogo.js';
  */
 export function criarServidorMcp(urlControle: string, fetchImpl: typeof fetch = fetch): Server {
   const base = urlControle.replace(/\/$/, '');
-  const server = new Server({ name: 'pump-sim', version: '0.1.0' }, { capabilities: { tools: {} } });
+  const server = new Server({ name: 'pump-sim', version: '1.0.0' }, { capabilities: { tools: {} } });
 
   server.setRequestHandler(ListToolsRequestSchema, () => ({
     tools: CATALOGO.map((c) => ({
