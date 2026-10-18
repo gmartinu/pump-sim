@@ -635,6 +635,7 @@ const H: Record<string, Handler> = {
   },
   carregar_config_padrao(rt) {
     rt.sim.conc.carregarConfigPadrao();
+    rt.guardarPrecosConfig();
     return { enderecos: rt.sim.conc.lados.filter((l) => l.configurado).length };
   },
   enviar_comando_cru(rt, a) {
@@ -799,6 +800,14 @@ const H: Record<string, Handler> = {
     rt.sim.conc.cicloEnergia();
     return { eventos: rt.sim.conc.eventos.slice(-2) };
   },
+  async reiniciar_processo(rt) {
+    // Q8 = the 2.7.2 program and its c:\simcnf.ini; a real console has no process (ciclo_energia).
+    if (!rt.sim.conc.q('Q8')) throw new ErroComando('reiniciar_processo só com o quirk Q8 (simulador-2.7.2); nos perfis reais use ciclo_energia', 409);
+    rt.tick();
+    const portas = await rt.reiniciarProcesso();
+    const c = rt.sim.conc;
+    return { escrita: c.buffer.escrita, portas, precos: c.lados.flatMap((l) => l.bicos.filter((b) => b.ativo).map((b) => ({ bico: hex2(b.codigo), vigentes: [...b.precos], pendentes: [...b.precosPendentes] }))) };
+  },
   async set_quirk(rt, a) {
     const nome = String(a.nome) as QuirkId;
     if (!TODOS_QUIRKS.includes(nome)) throw new ErroComando(`quirk desconhecido: ${nome} (${TODOS_QUIRKS.join(', ')})`);
@@ -937,7 +946,9 @@ const H: Record<string, Handler> = {
     }
   },
   importar_simcnf(rt, a) {
-    return importarSimcnf(rt, lerArquivoOuConteudo(a));
+    const r = importarSimcnf(rt, lerArquivoOuConteudo(a));
+    rt.guardarPrecosConfig();
+    return r;
   },
   importar_log(rt, a) {
     const c = rt.sim.conc;

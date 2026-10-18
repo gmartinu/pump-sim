@@ -10,12 +10,15 @@ const FALHAS = [
   ['frame_corrompido', 'Frame corrompido', 'troca N bytes da resposta'],
   ['truncado', 'Frame truncado', 'corta os últimos N bytes da resposta'],
   ['checksum_errado', 'Checksum errado', 'responde com KK inválido'],
+  ['erro', 'Erro do protocolo', 'responde o erro do verbo, ex.: (M?r); por padrão o comando não é aplicado'],
+  ['fragmentar', 'Fragmentar', 'entrega a resposta em N writes separados por ms'],
+  ['resposta_dupla', 'Resposta dupla', 'manda a mesma resposta duas vezes'],
   ['desconectar', 'Desconectar', 'fecha a conexão (RST ou FIN)'],
   ['travamento', 'Travar UI (modal)', 'congela como o MessageBox do 2.7.2 até liberar (sem ms) ou por N ms'],
 ];
 
 function ui(app) {
-  app.ui.trafego ??= { verbo: 'Todos', porta: 'todas', busca: '', pausado: null, sel: null, tipo: 'atraso', ms: '800', bytes: '1', modo: 'rst', prefixo: '&S', fporta: 'todas', vezes: '1', prob: '100' };
+  app.ui.trafego ??= { verbo: 'Todos', porta: 'todas', busca: '', pausado: null, sel: null, tipo: 'atraso', ms: '800', bytes: '1', modo: 'rst', prefixo: '&S', fporta: 'todas', vezes: '1', prob: '100', codigo: '?t', aplicarErro: '0', partes: '2', msFrag: '20' };
   return app.ui.trafego;
 }
 
@@ -153,6 +156,12 @@ export default {
     if (u.tipo === 'atraso' || u.tipo === 'travamento') param = `<div class="fcell"><span class="lbl">${u.tipo === 'atraso' ? 'Atraso' : 'Duração (vazio = até liberar)'}</span><div class="field mono"><input data-campo="ms" value="${e(u.ms)}"><span class="faint">ms</span></div></div>`;
     else if (u.tipo === 'frame_corrompido' || u.tipo === 'truncado') param = `<div class="fcell"><span class="lbl">Bytes</span><div class="field mono"><input data-campo="bytes" value="${e(u.bytes)}"></div></div>`;
     else if (u.tipo === 'desconectar') param = `<div class="fcell"><span class="lbl">Modo</span>${seg([['rst', 'RST'], ['fin', 'FIN']], u.modo, 'modo')}</div>`;
+    else if (u.tipo === 'erro')
+      param = `<div class="fcell"><span class="lbl">Código</span><div class="field mono"><input data-campo="codigo" value="${e(u.codigo)}" placeholder="?t, ?b, ?r, ?m, ?f"></div></div>
+        <div class="fcell"><span class="lbl">Aplicar o comando</span>${seg([['0', 'Não'], ['1', 'Sim']], u.aplicarErro, 'aplicar-erro')}</div>`;
+    else if (u.tipo === 'fragmentar')
+      param = `<div class="fcell"><span class="lbl">Partes</span><div class="field mono"><input data-campo="partes" value="${e(u.partes)}"></div></div>
+        <div class="fcell"><span class="lbl">Intervalo</span><div class="field mono"><input data-campo="msFrag" value="${e(u.msFrag)}"><span class="faint">ms</span></div></div>`;
     else param = '<div class="fcell"><span class="lbl">Parâmetro</span><div class="field faint">—</div></div>';
     const ativas = (est.falhas ?? [])
       .map((f) => {
@@ -181,7 +190,7 @@ export default {
           <div class="fcell"><span class="lbl">Prefixo do quadro</span><div class="field mono"><input data-campo="prefixo" value="${e(u.prefixo)}" placeholder="* = todos"></div></div>
           <div class="fcell"><span class="lbl">Porta</span><select class="field" data-campo="fporta"><option value="todas"${u.fporta === 'todas' ? ' selected' : ''}>Todas</option>${portas.map((p) => `<option value="${p}"${u.fporta === String(p) ? ' selected' : ''}>${p}</option>`).join('')}</select></div>
           <div class="fcell"><span class="lbl">Vezes</span>${seg([['1', '1'], ['5', '5'], ['sempre', 'sempre']], u.vezes, 'vezes')}</div>
-          <div class="fcell" style="grid-column: span 2"><span class="lbl">Probabilidade</span><div class="field mono"><input data-campo="prob" value="${e(u.prob)}"><span class="faint">%</span></div></div>
+          <div class="fcell"${u.tipo === 'erro' || u.tipo === 'fragmentar' ? '' : ' style="grid-column: span 2"'}><span class="lbl">Probabilidade</span><div class="field mono"><input data-campo="prob" value="${e(u.prob)}"><span class="faint">%</span></div></div>
         </div>
         <div class="row gap8" style="padding:0 14px 14px"><button class="btn pri wide" data-act="aplicar"><span class="ms s16">play_arrow</span>Aplicar falha</button></div>
         <div class="sep"></div>
@@ -246,6 +255,9 @@ export default {
     vezes(app, d) {
       ui(app).vezes = d.v;
     },
+    'aplicar-erro'(app, d) {
+      ui(app).aplicarErro = d.v;
+    },
     async aplicar(app) {
       const u = ui(app);
       const param = {};
@@ -253,6 +265,14 @@ export default {
       if (u.tipo === 'travamento') param.ms = u.ms.trim() === '' ? null : Number(u.ms);
       if (u.tipo === 'frame_corrompido' || u.tipo === 'truncado') param.bytes = Number(u.bytes);
       if (u.tipo === 'desconectar') param.modo = u.modo;
+      if (u.tipo === 'erro') {
+        param.codigo = u.codigo.trim() || '?t';
+        if (u.aplicarErro === '1') param.aplicar = true;
+      }
+      if (u.tipo === 'fragmentar') {
+        param.partes = Number(u.partes);
+        param.ms = Number(u.msFrag);
+      }
       const prob = lerNum(u.prob);
       const args = { tipo: u.tipo, verbo: u.prefixo.trim() || '*', vezes: u.vezes === 'sempre' ? 'sempre' : Number(u.vezes), param };
       if (u.fporta !== 'todas') args.porta = Number(u.fporta);

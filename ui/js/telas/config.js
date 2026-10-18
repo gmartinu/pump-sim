@@ -109,7 +109,7 @@ export default {
         </section>
       </div><div class="stack">
         <section class="card"><div class="card-h"><span class="h2">Portas TCP</span><span class="small faint">${um ? `${e(est.perfil.id)}: uma porta por vez, ponteiro único` : 'escutam ao mesmo tempo, cada uma com o próprio ponteiro'}</span></div>
-          ${portas}<div class="sep"></div>
+          ${portas}${est.quirks?.Q8 ? `<div class="card-b row gap8"><button class="btn" data-act="reiniciar-processo"><span class="ms s16">restart_alt</span>Reiniciar o 2.7.2</button><span class="small faint">fecha e reabre o programa: R volta a 1, preços da configuração, encerrantes mantidos</span></div>` : ''}<div class="sep"></div>
           <div class="card-b note"><span class="ms s14">info</span> Nos perfis reais (cbc-32, horustech-48, concept-48…) as portas <span class="mono">857</span>, <span class="mono">1771</span> e <span class="mono">2001</span> escutam ao mesmo tempo, cada uma com o próprio ponteiro de leitura. A <span class="mono">7002</span> só existe no 2.7.2.</div></section>
         <section class="card"><div class="card-h"><span class="h2">Relógio do CBC</span><span class="small faint">o que o &amp;R devolve e o que data os registros</span></div>
           <div class="card-b fx col gap12">
@@ -161,6 +161,18 @@ export default {
       const est = app.estado;
       if (est.perfil.escutaTcp === 'umaPorVez' || d.on === '0') await app.chamar('abrir_porta', { porta: Number(d.p) });
       else await app.chamar('fechar_porta', { porta: Number(d.p) });
+    },
+    'reiniciar-processo'(app) {
+      app.abrirModal({
+        titulo: 'Reiniciar o 2.7.2',
+        rotulo: 'Reiniciar',
+        perigo: true,
+        corpo: () =>
+          '<span class="small">Como fechar e abrir o SimuladorCBC: as conexões caem e a porta reabre, a memória de abastecimentos volta ao registro 1, os preços voltam aos da configuração (o que veio por &amp;U se perde) e os encerrantes ficam.</span>',
+        async confirmar() {
+          await app.chamar('reiniciar_processo');
+        },
+      });
     },
     'ler-relogio'(app) {
       const u = ui(app);

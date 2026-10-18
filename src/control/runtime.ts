@@ -5,7 +5,7 @@ import type { Evento } from '../core/modelo.js';
 import { type Perfil, type PerfilId, obterPerfil } from '../profiles/index.js';
 import { Gravador } from '../recorder/gravador.js';
 import { PumpSim } from '../sim.js';
-import { type GanchosTcp, ServidorTcp, saidaPadrao } from '../transport/tcp.js';
+import { type GanchosTcp, type PortaEscuta, ServidorTcp, saidaPadrao } from '../transport/tcp.js';
 import { InjetorFalhas } from './falhas.js';
 
 export interface OpcoesRuntime {
@@ -73,6 +73,7 @@ export class SimRuntime extends EventEmitter {
   recusarConexoes = false;
   erroPorta: ErroPorta | null = null;
   readonly snapshots = new Map<string, Snapshot>();
+  private readonly precosConfig = new Map<number, { precos: [number, number, number]; pendentes: [number | null, number | null, number | null] }>();
   private agenda: Agendado[] = [];
   private readonly op: OpcoesRuntime;
 
@@ -82,6 +83,9 @@ export class SimRuntime extends EventEmitter {
     this.sim = this.novoSim(typeof op.perfil === 'string' ? obterPerfil(op.perfil) : op.perfil, op.configPadrao ?? true);
     this.falhas = new InjetorFalhas(op.semente ?? 1, (ms) => this.travar('falha injetada', ms));
     this.falhas.aoDisparar = (regra, porta, quadro) => this.emit('falha', { ts: this.clock.now(), porta, quadro, regra });
+    this.falhas.registrar = (porta, dir, texto) => this.sim.conc.registrarLog(`tcp:${porta}`, dir, texto);
+    this.falhas.ackPreco = () => this.perfil.ackPreco;
+    this.guardarPrecosConfig();
   }
 
   static async criar(op: OpcoesRuntime): Promise<SimRuntime> {
@@ -217,11 +221,15 @@ export class SimRuntime extends EventEmitter {
     antigo.conc.onLog = undefined;
     this.agenda = [];
     if (this.servidor) {
-      const atuais = this.servidor.portas().map((p) => p.logica).sort();
+      // Numeric sort: the default `.sort()` compares as strings, so [2001, 1771] became [1771, 2001]
+      // and a single-port profile kept 1771 instead of its default 2001 (posto bench run 1, P3).
+      const numerica = (a: number, b: number) => a - b;
+      const atuais = this.servidor.portas().map((p) => p.logica).sort(numerica);
       const querem =
         perfil.escutaTcp === 'umaPorVez'
-          ? [atuais.find((p) => perfil.opcoesPortaTcp.includes(p)) ?? perfil.opcoesPortaTcp[0] ?? 2001]
-          : perfil.portas.filter((p) => p.tipo === 'tcp').map((p) => Number(p.porta)).sort();
+          ? // The profile's own order (its default first) decides which open port the single socket keeps.
+            [perfil.opcoesPortaTcp.find((p) => atuais.includes(p)) ?? perfil.opcoesPortaTcp[0] ?? 2001]
+          : perfil.portas.filter((p) => p.tipo === 'tcp').map((p) => Number(p.porta)).sort(numerica);
       if (JSON.stringify(atuais) === JSON.stringify(querem)) {
         this.servidor.usarSim(novo);
       } else {
@@ -243,43 +251,109 @@ export class SimRuntime extends EventEmitter {
    * mode), the cards and the blacklist; zeroes buffer, totalizers, events and log.
    */
   reset(manterConfig = false): void {
-    const anterior = this.sim.conc.exportarEstado();
-    const perfil = this.sim.conc.perfil;
-    const novo = this.novoSim(perfil, !manterConfig);
-    if (manterConfig) {
-      const e = novo.conc.exportarEstado();
-      e.lados = anterior.lados.map((l) => ({
-        ...l,
-        falha: false,
-        bloqueado: false,
-        preAutorizado: false,
-        presetCentavos: null,
-        presetVolumeMl: null,
-        bicoAutorizado: null,
-        autorizacaoExpiraEm: null,
-        cartao1: null,
-        cartao2: null,
-        bicos: l.bicos.map((b) => ({
-          ...b,
-          estado: b.ativo ? 'repouso' : 'naoConfigurado',
-          status: b.ativo ? 'L' : 'F',
-          encerranteMl: 0,
-          encerranteFracMl: undefined,
-          encerranteValorMil: 0,
-          corrente: null,
-          ultimosCartoes: { cartao1: null, cartao2: null },
-        })),
-      }));
-      e.cartoes = anterior.cartoes;
-      e.listaNegra = anterior.listaNegra;
-      novo.conc.importarEstado(e);
+    this.trocarSim(manterConfig ? this.simComConfig(false) : this.novoSim(this.perfil, true));
+    this.guardarPrecosConfig();
+    this.emit('reset', { manterConfig });
+  }
+
+  /**
+   * 2.7.2 process restart (DECISIONS §36, Windows bench 2026-10-18): a fresh process that reads back
+   * only what c:\simcnf.ini holds (Q8). The record counter R and the read pointer go back to 1 (the
+   * buffer is not persisted), the prices go back to the configuration's ({@link guardarPrecosConfig}:
+   * a runtime `&U`/`set_preco` is lost), the totalizers, addresses, cards and blacklist are kept, and
+   * the TCP connections drop and the port reopens. Everything else is a fresh process.
+   */
+  async reiniciarProcesso(): Promise<PortaEscuta[]> {
+    const travamentoMs = this.sim.conc.travamentoMs;
+    const novo = this.simComConfig(true);
+    for (const b of novo.conc.lados.flatMap((l) => l.bicos)) {
+      const cfg = this.precosConfig.get(b.codigo);
+      if (!cfg) continue;
+      b.precos = [...cfg.precos];
+      b.precosPendentes = [...cfg.pendentes];
     }
+    // A harness setting (`configurar_travamento`), not 2.7.2 state.
+    novo.conc.travamentoMs = travamentoMs;
+    const portas = this.servidor?.portas().map((p) => p.logica) ?? [];
+    this.trocarSim(novo);
+    if (this.servidor) {
+      const p = this.perfil;
+      const reabrir = portas.length ? portas : p.escutaTcp === 'umaPorVez' ? [p.opcoesPortaTcp[0] ?? 2001] : p.portas.filter((x) => x.tipo === 'tcp').map((x) => Number(x.porta));
+      await this.servidor.fechar();
+      for (const l of reabrir) {
+        try {
+          await this.servidor.abrirPorta(l);
+        } catch (e) {
+          this.registrarErroPorta(l, e);
+          throw e;
+        }
+      }
+      this.erroPorta = null;
+    }
+    this.emit('reset', { manterConfig: true, processo: true });
+    return this.servidor?.portas() ?? [];
+  }
+
+  /**
+   * Prices of the last configuration load (startup, `reset`, `carregar_config_padrao`, `importar_simcnf`,
+   * `snapshot_carregar`): what a 2.7.2 restart reads back. Nozzles activated later (`&C`) are not in it and
+   * keep their price on a restart.
+   */
+  guardarPrecosConfig(): void {
+    this.precosConfig.clear();
+    for (const b of this.sim.conc.lados.flatMap((l) => l.bicos)) {
+      if (b.ativo) this.precosConfig.set(b.codigo, { precos: [...b.precos], pendentes: [...b.precosPendentes] });
+    }
+  }
+
+  /**
+   * A new simulator with the current addresses, nozzles, cards and blacklist, every side and nozzle at
+   * rest. `manterEncerrantes` keeps the totalizers (process restart); otherwise they are zeroed (`reset`).
+   */
+  private simComConfig(manterEncerrantes: boolean): PumpSim {
+    const anterior = this.sim.conc.exportarEstado();
+    const novo = this.novoSim(this.perfil, false);
+    const e = novo.conc.exportarEstado();
+    e.lados = anterior.lados.map((l) => ({
+      ...l,
+      falha: false,
+      bloqueado: false,
+      preAutorizado: false,
+      presetCentavos: null,
+      presetVolumeMl: null,
+      bicoAutorizado: null,
+      autorizacaoExpiraEm: null,
+      cartao1: null,
+      cartao2: null,
+      bicos: l.bicos.map((b) => ({
+        ...b,
+        estado: b.ativo ? 'repouso' : 'naoConfigurado',
+        status: b.ativo ? 'L' : 'F',
+        // The 2.7.2's per-nozzle runtime state (BICO_272, BLOQUEIO_272, MS_272): authorization, preset,
+        // block and last fueling. Cleared by both forms (DECISIONS §36 F3).
+        // Only fields the nozzle carries: real profiles never set them, and their state stays byte-identical.
+        ...(b.preAut !== undefined && { preAut: false }),
+        ...(b.presetCentavos !== undefined && { presetCentavos: null }),
+        ...(b.bloqueio !== undefined && { bloqueio: false }),
+        ...(b.ultimo !== undefined && { ultimo: null }),
+        ...(b.recolocarNoPreset !== undefined && { recolocarNoPreset: false }),
+        ...(manterEncerrantes ? {} : { encerranteMl: 0, encerranteFracMl: undefined, encerranteValorMil: 0 }),
+        corrente: null,
+        ultimosCartoes: { cartao1: null, cartao2: null },
+      })),
+    }));
+    e.cartoes = anterior.cartoes;
+    e.listaNegra = anterior.listaNegra;
+    novo.conc.importarEstado(e);
+    return novo;
+  }
+
+  private trocarSim(novo: PumpSim): void {
     this.sim.conc.onEvento = undefined;
     this.sim.conc.onLog = undefined;
     this.sim = novo;
     this.agenda = [];
     this.servidor?.usarSim(novo);
-    this.emit('reset', { manterConfig });
   }
 
   snapshotSalvar(nome: string): Snapshot {
@@ -293,6 +367,7 @@ export class SimRuntime extends EventEmitter {
     if (!s) throw new Error(`snapshot inexistente: ${nome}`);
     if (s.perfil.id !== this.perfil.id) await this.trocarPerfil(s.perfil);
     this.sim.conc.importarEstado(s.estado);
+    this.guardarPrecosConfig();
   }
 
   // ───────────────────────── recording ─────────────────────────

@@ -82,7 +82,11 @@ export class PumpSim {
   }
 
   /** Serves an already framed frame. `porta` = "tcp:2001", "serial:COM1"… */
-  processarQuadro(quadro: string, porta = 'tcp:2001'): ResultadoQuadro {
+  /**
+   * `logTx: false`: the immediate reply is not written to the communication log, because a transport fault
+   * replaces it and logs the bytes that actually leave (DECISIONS §36 F1).
+   */
+  processarQuadro(quadro: string, porta = 'tcp:2001', op: { logTx?: boolean } = {}): ResultadoQuadro {
     const c = this.conc;
     c.atualizar();
     c.registrarLog(porta, 'RX', quadro);
@@ -115,7 +119,7 @@ export class PumpSim {
       });
     }
     if (r.erro === 'ERRO CMD') c.registrarLog(porta, 'ERRO', `ERRO CMD: ${quadro}`);
-    if (r.resposta) c.registrarLog(porta, 'TX', r.resposta);
+    if (r.resposta && op.logTx !== false) c.registrarLog(porta, 'TX', r.resposta);
     return adiada ? { quadro, ...r, adiada } : { quadro, ...r };
   }
 

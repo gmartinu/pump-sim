@@ -349,7 +349,8 @@ describe('injeção de falhas pela API: um caso por tipo (cbc-32 e 2.7.2)', () =
     expect(await txt(c, Q)).toBe(BASE + BASE);
 
     await cmd('injetar_falha', { tipo: 'erro', verbo: '&T', param: { codigo: '?t' } });
-    expect(await txt(c, Q)).toBe('(?t)');
+    // DECISIONS §36: the erro frame carries the verb letter, like the codec's own errors.
+    expect(await txt(c, Q)).toBe('(T?t)');
 
     await cmd('injetar_falha', { tipo: 'frame_corrompido', verbo: '&T', param: { bytes: 3 } });
     const fc = await txt(c, Q);

@@ -204,7 +204,7 @@ The catalog (`src/control/catalogo.ts`) is the full command inventory (K18–K26
 - **controle** (physical): `retirar_bico`, `recolocar_bico`, `alternar_bico`, `abastecer`,
   `gerar_abastecimentos`, `limpar_buffer`, `apresentar_cartao`, `set_falha_endereco`, `set_automacao`, `set_rede_ac`,
   `set_bateria`, `set_dip`, `set_velocidade`, `set_relogio_simulado`, `avancar_tempo`,
-  `injetar_evento`/`ciclo_energia` (K21), `set_quirk`, `set_modelo`/`set_firmware` (K26).
+  `injetar_evento`/`ciclo_energia` (K21), `reiniciar_processo` (2.7.2 restart, DECISIONS §36), `set_quirk`, `set_modelo`/`set_firmware` (K26).
 - **infra**: `injetar_falha`, `limpar_falhas`, `desconectar`, `travar`/`liberar_travamento`,
   `configurar_travamento`, `set_perfil`, `abrir_porta`/`fechar_porta`, `gravar_inicio`/`gravar_fim`,
   `replay`/`replay_parar`, `snapshot_salvar`/`snapshot_carregar`, `reset`, `diff_executar`,

@@ -622,3 +622,70 @@ describe('Tráfego: checksum do TX e quadros ligados à falha injetada', () => {
     expect(el.scrollTop).toBe(10);
   });
 });
+
+describe('Tráfego: painel Falhas oferece erro, fragmentar e resposta_dupla (DECISIONS §36 F2)', () => {
+  const montar = async () => {
+    const { app } = await criar('simulador-2.7.2');
+    const { default: trafego } = await tela('trafego');
+    const a = (await app()) as App & { trafego: unknown[]; aviso: (t: string, tipo: string) => void };
+    a.trafego = [];
+    a.aviso = () => {};
+    trafego.render(a);
+    return { a, trafego, u: a.ui.trafego as Record<string, string> };
+  };
+
+  it('erro: campo Código (padrão ?t) e Aplicar Não/Sim; o padrão envia só o código', async () => {
+    const { a, trafego, u } = await montar();
+    await trafego.acoes.tipo!(a, { v: 'erro' });
+    const html = trafego.render(a);
+    expect(html).toContain('data-campo="codigo" value="?t"');
+    expect(html).toContain('Aplicar o comando');
+    expect(u.aplicarErro).toBe('0');
+    await trafego.acoes.aplicar!(a, {});
+    const [nome, args] = a.chamadas.at(-1)!;
+    expect(nome).toBe('injetar_falha');
+    expect(args).toMatchObject({ tipo: 'erro', param: { codigo: '?t' } });
+    expect((args.param as Record<string, unknown>).aplicar).toBeUndefined();
+  });
+
+  it('erro com Aplicar = Sim envia {codigo, aplicar:true}; código vazio volta para ?t', async () => {
+    const { a, trafego, u } = await montar();
+    await trafego.acoes.tipo!(a, { v: 'erro' });
+    u.codigo = '?r';
+    await trafego.acoes['aplicar-erro']!(a, { v: '1' });
+    await trafego.acoes.aplicar!(a, {});
+    expect(a.chamadas.at(-1)![1]).toMatchObject({ tipo: 'erro', param: { codigo: '?r', aplicar: true } });
+    u.codigo = '  ';
+    await trafego.acoes.aplicar!(a, {});
+    expect(a.chamadas.at(-1)![1]).toMatchObject({ tipo: 'erro', param: { codigo: '?t', aplicar: true } });
+  });
+
+  it('fragmentar: campos Partes (2) e Intervalo (20 ms) e o envio {partes, ms}', async () => {
+    const { a, trafego, u } = await montar();
+    await trafego.acoes.tipo!(a, { v: 'fragmentar' });
+    const html = trafego.render(a);
+    expect(html).toContain('data-campo="partes" value="2"');
+    expect(html).toContain('data-campo="msFrag" value="20"');
+    u.partes = '4';
+    u.msFrag = '35';
+    await trafego.acoes.aplicar!(a, {});
+    const [nome, args] = a.chamadas.at(-1)!;
+    expect(nome).toBe('injetar_falha');
+    expect(args).toMatchObject({ tipo: 'fragmentar', param: { partes: 4, ms: 35 } });
+  });
+
+  it('resposta_dupla: sem parâmetro e a falha chega ao simulador', async () => {
+    const { a, trafego } = await montar();
+    await trafego.acoes.tipo!(a, { v: 'resposta_dupla' });
+    expect(trafego.render(a)).toContain('<div class="field faint">—</div>');
+    await trafego.acoes.aplicar!(a, {});
+    expect(a.chamadas.at(-1)![1]).toMatchObject({ tipo: 'resposta_dupla', param: {} });
+    expect(((await a.chamar('list_falhas')) as { falhas: { tipo: string }[] }).falhas.map((f) => f.tipo)).toEqual(['resposta_dupla']);
+  });
+
+  it('os três tipos estão na lista de falhas do painel', async () => {
+    const { a, trafego } = await montar();
+    const html = trafego.render(a);
+    for (const t of ['erro', 'fragmentar', 'resposta_dupla']) expect(html).toContain(`data-v="${t}"`);
+  });
+});

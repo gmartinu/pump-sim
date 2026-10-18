@@ -56,7 +56,7 @@ export interface GanchosTcp {
    * Serves a frame. `processar` runs the simulator; with no hook, the output is the
    * reply in a single `write` (or nothing, on silence).
    */
-  atender?(info: InfoConexao, quadro: string, processar: () => ResultadoQuadro): SaidaTcp[];
+  atender?(info: InfoConexao, quadro: string, processar: (op?: { logTx?: boolean }) => ResultadoQuadro): SaidaTcp[];
 }
 
 interface Ouvinte {
@@ -205,8 +205,8 @@ export class ServidorTcp {
       if (!framer || framer.modo !== modo) framer = new Framer(modo);
       const quadros = framer.receber(buf.toString('latin1'));
       for (const quadro of quadros) {
-        const processar = () => {
-          const r = this.sim.processarQuadro(quadro, id);
+        const processar = (op?: { logTx?: boolean }) => {
+          const r = this.sim.processarQuadro(quadro, id, op);
           // Reply held behind the modal (E3): goes out when it closes, outside the queue order.
           void r.adiada?.then((t) => escrever(Buffer.from(t, 'latin1')));
           return r;

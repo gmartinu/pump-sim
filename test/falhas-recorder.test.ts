@@ -71,7 +71,8 @@ describe('injeção de falhas no TCP', () => {
     await cmd('injetar_falha', { tipo: 'resposta_dupla', verbo: '&T' });
     expect(await txt(c, '(&T04L2A)')).toBe(base + base);
     await cmd('injetar_falha', { tipo: 'erro', verbo: '&T', param: { codigo: '?b' } });
-    expect(await txt(c, '(&T04L2A)')).toBe('(?b)');
+    // DECISIONS §36: the erro frame carries the verb letter, like the codec's own errors.
+    expect(await txt(c, '(&T04L2A)')).toBe('(T?b)');
     expect(await txt(c, '(&T04L2A)')).toBe(base);
   });
 

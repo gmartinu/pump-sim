@@ -13,7 +13,10 @@ import { type SaidaTcp, saidaPadrao } from '../transport/tcp.js';
  * - `checksum_errado`: replaces the 2 chars before the `)` (the KK when there is one).
  * - `fragmentar`: the reply in `partes` writes separated by `ms`.
  * - `resposta_dupla`: the same reply twice.
- * - `erro`: the reply becomes `(` + `codigo` + `)`, e.g. `?t`, `?b`, `?m`.
+ * - `erro`: the reply becomes the codec's own error frame for the request's verb: `(` + verb letter +
+ *   `codigo` + `)`, e.g. `(&M04L…)` + `?r` → `(M?r)`, like the natural errors (no KK). A `codigo` that does not
+ *   start with `?` goes out verbatim inside the parentheses. The command is **not** applied unless
+ *   `aplicar: true` (DECISIONS §36).
  * - `desconectar`: drops the connection on receiving the frame (`modo` rst|fin).
  * - `travamento`: freezes the concentrator (modal MessageBox) for `ms` (null = until released).
  */
@@ -37,7 +40,10 @@ export interface ParamFalha {
   partes?: number;
   codigo?: string;
   modo?: 'rst' | 'fin';
-  /** false = the frame does not even reach the simulator (the command is not applied). */
+  /**
+   * false = the frame does not even reach the simulator (the command is not applied). Default true,
+   * except for `erro`, where the default is false and `true` applies the command anyway.
+   */
   aplicar?: boolean;
 }
 
@@ -80,12 +86,31 @@ export function casaVerbo(verbo: string, quadro: string): boolean {
   return q.startsWith(verbo);
 }
 
+/**
+ * Verb letter of the natural error frame for a request (DECISIONS §36): `(&M…)` → `M`, `(&U…)` → the
+ * profile's price ack letter, Identfid `(?F…)` → `F`. Horustech and anything else: no letter.
+ */
+export function letraErro(quadro: string, ackPreco = 'U'): string {
+  const m = /^\((?:&|\?)([A-Za-z])/.exec(quadro);
+  if (!m) return '';
+  return quadro[1] === '&' && m[1] === 'U' ? ackPreco : m[1]!;
+}
+
+/** The `erro` fault's frame: the request's verb letter + `codigo`, without KK, like the codec's own errors. */
+export function quadroErro(quadro: string, codigo = '?t', ackPreco = 'U'): string {
+  return codigo.startsWith('?') ? `(${letraErro(quadro, ackPreco)}${codigo})` : `(${codigo})`;
+}
+
 export class InjetorFalhas {
   private regras: RegraFalha[] = [];
   private proximoId = 1;
   private readonly aleatorio: () => number;
   /** Observer: called each time a rule fires (the UI traffic console shows it). No effect on the output. */
   aoDisparar?: (regra: RegraFalha, porta: number, quadro: string) => void;
+  /** Communication log (`get_log_comunicacao`) of a reply the fault wrote instead of the simulator's. */
+  registrar?: (porta: number, dir: 'RX' | 'TX' | 'INFO', texto: string) => void;
+  /** Price ack letter of the current profile (`Perfil.ackPreco`), for the `erro` frame of `&U`. */
+  ackPreco: () => string = () => 'U';
 
   constructor(
     semente = 1,
@@ -135,11 +160,40 @@ export class InjetorFalhas {
     return null;
   }
 
-  /** Transport `atender` hook. */
-  atender(porta: number, quadro: string, processar: () => ResultadoQuadro): SaidaTcp[] {
+  /**
+   * Transport `atender` hook. A fired rule writes to the communication log (`registrar`) what really
+   * happened (DECISIONS §36 F1): the RX when the simulator did not see the frame, an INFO line with the
+   * fault and the simulator's own reply, then one TX per write that leaves, or "sem resposta".
+   */
+  atender(porta: number, quadro: string, processar: (op?: { logTx?: boolean }) => ResultadoQuadro): SaidaTcp[] {
     const r = this.escolher(porta, quadro);
     if (!r) return saidaPadrao(processar());
     this.aoDisparar?.({ ...r, param: { ...r.param } }, porta, quadro);
+    let natural: string | null | undefined;
+    // The immediate reply goes to the log only as the bytes that leave (below), never as the simulator made it.
+    const proc = (): ResultadoQuadro => {
+      const res = processar({ logTx: false });
+      natural = res.resposta;
+      return res;
+    };
+    const saidas = this.transformar(r, quadro, proc);
+    if (natural === undefined) this.registrar?.(porta, 'RX', quadro);
+    const simulador = natural === undefined ? 'não aplicado' : natural === null ? 'sem resposta' : natural;
+    this.registrar?.(porta, 'INFO', `falha ${r.tipo} #${r.id}${r.param.ms ? ` ${r.param.ms} ms` : ''} (simulador: ${simulador})`);
+    let enviou = false;
+    for (const x of saidas) {
+      if (x.tipo === 'enviar') {
+        enviou = true;
+        this.registrar?.(porta, 'TX', x.bytes.toString('latin1'));
+      } else {
+        this.registrar?.(porta, 'INFO', `falha ${r.tipo}: conexão derrubada (${x.modo})`);
+      }
+    }
+    if (!enviou && !saidas.some((x) => x.tipo === 'desconectar')) this.registrar?.(porta, 'INFO', `falha ${r.tipo}: sem resposta`);
+    return saidas;
+  }
+
+  private transformar(r: RegraFalha, quadro: string, processar: () => ResultadoQuadro): SaidaTcp[] {
     const p = r.param;
     if (r.tipo === 'desconectar') {
       if (p.aplicar !== false) processar();
@@ -149,6 +203,10 @@ export class InjetorFalhas {
       this.travar(p.ms === undefined ? null : p.ms);
       return [];
     }
+    if (r.tipo === 'erro') {
+      if (p.aplicar === true) processar();
+      return [{ tipo: 'enviar', bytes: Buffer.from(quadroErro(quadro, p.codigo, this.ackPreco()), 'latin1') }];
+    }
     const res = p.aplicar === false ? null : processar();
     const txt = res?.resposta ?? null;
     switch (r.tipo) {
@@ -156,8 +214,6 @@ export class InjetorFalhas {
         return [];
       case 'atraso':
         return txt ? [{ tipo: 'enviar', bytes: Buffer.from(txt, 'latin1'), atrasoMs: p.ms ?? 1000 }] : [];
-      case 'erro':
-        return [{ tipo: 'enviar', bytes: Buffer.from(`(${p.codigo ?? '?t'})`, 'latin1') }];
       default:
         break;
     }
