@@ -2,7 +2,9 @@ import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
 import { type WebSocket, WebSocketServer } from 'ws';
+import { McpHttp, type StatusMcpHttp } from '../mcp/http.js';
 import { lerAssetUi } from '../ui/assets.js';
+import { CAUDA_MAX, CAUDA_PADRAO, lerCauda } from '../ui/log.js';
 import { defComando } from './catalogo.js';
 import { catalogoCompleto, executarComando } from './comandos.js';
 import type { Hub } from './hub.js';
@@ -22,6 +24,11 @@ import type { SimRuntime } from './runtime.js';
  * - `GET  /` and `/ui/<arquivo>` — the web UI (static files; it drives the simulator only through this API).
  * - `GET  /api/servidor` — WS clients, recent calls from agents (HTTP, MCP, WS; the UI's own are left out).
  * - `GET  /api/gravacoes/<nome>.jsonl` — download of a recording in the recordings folder.
+ * - `POST|GET|DELETE /mcp` — MCP over streamable HTTP (`src/mcp/http.ts`, DECISIONS §33), the same
+ *   tools as `pump-sim mcp`, in process.
+ * - `GET  /api/mcp`, `POST /api/mcp {ativo}` — status of the HTTP MCP endpoint, switch it on/off.
+ * - `GET  /api/logs` — tail of the executable's log file; `POST /api/encerrar` — ends the process
+ *   ("Encerrar pump-sim" in the UI). Both only for a loopback peer.
  *
  * Every reply is `{ ok: true, resultado }` or `{ ok: false, erro }`.
  *
@@ -35,8 +42,25 @@ import type { SimRuntime } from './runtime.js';
 export interface ServidorControle {
   porta: number;
   url: string;
+  /** The streamable HTTP MCP endpoint (`<url>/mcp`). */
+  mcp: McpHttp;
   fechar(): Promise<void>;
 }
+
+export interface OpcoesControle {
+  /** Initial state of the HTTP MCP endpoint (default on). */
+  mcpHttp?: boolean;
+  /** Log file of the Windows executable whose tail `GET /api/logs` returns (DECISIONS §34); none elsewhere. */
+  arquivoLog?: string | null;
+  /**
+   * Ends the process (DECISIONS §35): `POST /api/encerrar` calls it after its reply went out. Only the
+   * CLI passes it; without it the route answers 501 and `/api/servidor` reports `encerrar: false`.
+   */
+  aoEncerrar?: () => void;
+}
+
+/** Status of `/mcp` with the URL a local MCP client should use. */
+export type StatusMcpHttpUrl = StatusMcpHttp & { url: string };
 
 /** One command call seen by the API (the agents panel of the UI). */
 export interface ChamadaApi {
@@ -130,7 +154,13 @@ export function recusaOrigem(headers: http.IncomingHttpHeaders, bindLoopback: bo
   return null;
 }
 
-export function abrirServidorControle(hub: Hub, porta: number, host = '127.0.0.1'): Promise<ServidorControle> {
+/** Host for the URLs handed to local clients: a wildcard bind is reached on 127.0.0.1. */
+function hostLocal(host: string): string {
+  if (host === '0.0.0.0' || host === '::' || host === '') return '127.0.0.1';
+  return host.includes(':') && !host.startsWith('[') ? `[${host}]` : host;
+}
+
+export function abrirServidorControle(hub: Hub, porta: number, host = '127.0.0.1', opcoes: OpcoesControle = {}): Promise<ServidorControle> {
   const clientes = new Set<WebSocket>();
   const anexados = new WeakSet<SimRuntime>();
   const difundir = (msg: unknown) => {
@@ -165,6 +195,19 @@ export function abrirServidorControle(hub: Hub, porta: number, host = '127.0.0.1
       anexar();
     }
   };
+  const mcp = new McpHttp(
+    async (nome, args, cliente) => {
+      try {
+        return { ok: true, resultado: await executar(nome, args, 'mcp', cliente || null) };
+      } catch (e) {
+        return { ok: false, erro: e instanceof Error ? e.message : String(e) };
+      }
+    },
+    hub.clock,
+    opcoes.mcpHttp ?? true,
+  );
+  let portaReal = porta;
+  const statusMcp = (): StatusMcpHttpUrl => ({ ...mcp.status(), url: `http://${hostLocal(host)}:${portaReal}/mcp` });
   const cabecalho = (req: http.IncomingMessage, nome: string): string | null => {
     const v = req.headers[nome];
     return typeof v === 'string' && v ? v.slice(0, 80) : null;
@@ -202,17 +245,58 @@ export function abrirServidorControle(hub: Hub, porta: number, host = '127.0.0.1
           return responder(res, 404, { ok: false, erro: `arquivo da UI inexistente: ${u.pathname}` });
         }
         if (req.method === 'GET' && u.pathname === '/api/servidor') {
-          const mcp = [...chamadas].reverse().find((c) => c.origem === 'mcp');
+          const ultimaMcp = [...chamadas].reverse().find((c) => c.origem === 'mcp');
           return responder(res, 200, {
             ok: true,
             resultado: {
               wsClientes: clientes.size,
               dirGravacoes: path.resolve(hub.dirGravacoes),
               agora: hub.clock.now(),
-              mcp: mcp ? { ultima: mcp.ts, cliente: mcp.cliente } : null,
+              mcp: ultimaMcp ? { ultima: ultimaMcp.ts, cliente: ultimaMcp.cliente } : null,
+              mcpHttp: statusMcp(),
+              log: { ativo: Boolean(opcoes.arquivoLog), arquivo: opcoes.arquivoLog ?? null },
+              encerrar: Boolean(opcoes.aoEncerrar),
               chamadas: [...chamadas].reverse(),
             },
           });
+        }
+        if (req.method === 'GET' && u.pathname === '/api/logs') {
+          // The log may hold paths and peer addresses: loopback peers only, even with --control-host.
+          if (!ehLoopback((req.socket.remoteAddress ?? '').replace(/^::ffff:/, ''))) {
+            return responder(res, 403, { ok: false, erro: 'log só pelo loopback' });
+          }
+          if (!opcoes.arquivoLog) return responder(res, 200, { ok: true, resultado: { ativo: false, arquivo: null, texto: '', tamanho: 0 } });
+          const pedido = Number(u.searchParams.get('bytes') ?? CAUDA_PADRAO);
+          const bytes = Number.isFinite(pedido) && pedido > 0 ? Math.min(pedido, CAUDA_MAX) : CAUDA_PADRAO;
+          const c = lerCauda(opcoes.arquivoLog, bytes);
+          return responder(res, 200, { ok: true, resultado: { ativo: true, arquivo: opcoes.arquivoLog, ...c } });
+        }
+        const jsonPost = req.method !== 'POST' || /^application\/json\b/i.test(req.headers['content-type'] ?? '');
+        if (u.pathname === '/api/encerrar' && req.method === 'POST') {
+          // Ends the simulator: loopback peers only, even with --control-host (like /api/logs).
+          if (!ehLoopback((req.socket.remoteAddress ?? '').replace(/^::ffff:/, ''))) {
+            return responder(res, 403, { ok: false, erro: 'encerrar só pelo loopback' });
+          }
+          if (!jsonPost) return responder(res, 415, { ok: false, erro: 'POST exige content-type: application/json' });
+          const encerrar = opcoes.aoEncerrar;
+          if (!encerrar) return responder(res, 501, { ok: false, erro: 'encerrar não disponível neste processo' });
+          await lerCorpo(req);
+          res.once('finish', () => setImmediate(encerrar));
+          return responder(res, 202, { ok: true, resultado: { encerrando: true } });
+        }
+        if (u.pathname === '/mcp') {
+          // Same rule as the command POSTs: a website cannot send JSON without a preflight.
+          if (!jsonPost) return responder(res, 415, { ok: false, erro: 'POST exige content-type: application/json' });
+          await mcp.atender(req, res);
+          return;
+        }
+        if (u.pathname === '/api/mcp' && req.method === 'GET') return responder(res, 200, { ok: true, resultado: statusMcp() });
+        if (u.pathname === '/api/mcp' && req.method === 'POST') {
+          if (!jsonPost) return responder(res, 415, { ok: false, erro: 'POST exige content-type: application/json' });
+          const v = JSON.parse((await lerCorpo(req)) || '{}') as { ativo?: unknown };
+          if (typeof v.ativo !== 'boolean') return responder(res, 400, { ok: false, erro: 'ativo: true ou false' });
+          await mcp.definirAtivo(v.ativo);
+          return responder(res, 200, { ok: true, resultado: statusMcp() });
         }
         const g = /^\/api\/gravacoes\/([\w.-]+\.jsonl)$/.exec(u.pathname);
         if (req.method === 'GET' && g) {
@@ -248,6 +332,7 @@ export function abrirServidorControle(hub: Hub, porta: number, host = '127.0.0.1
         }
         responder(res, 404, { ok: false, erro: `rota inexistente: ${req.method ?? ''} ${u.pathname}` });
       } catch (e) {
+        if (res.headersSent) return void res.end();
         responder(res, statusDe(e), { ok: false, erro: e instanceof Error ? e.message : String(e) });
       }
     })();
@@ -286,16 +371,20 @@ export function abrirServidorControle(hub: Hub, porta: number, host = '127.0.0.1
       server.off('error', reject);
       const a = server.address();
       const p = typeof a === 'object' && a ? a.port : porta;
+      portaReal = p;
       resolve({
         porta: p,
         url: `http://${host}:${p}`,
-        fechar: () =>
-          new Promise<void>((r) => {
+        mcp,
+        fechar: async () => {
+          await mcp.fechar();
+          await new Promise<void>((r) => {
             for (const c of clientes) c.terminate();
             wss.close();
             server.closeAllConnections();
             server.close(() => r());
-          }),
+          });
+        },
       });
     });
   });

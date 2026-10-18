@@ -20,12 +20,12 @@ Horustech, Concept). It speaks the protocol like SimuladorCBC 2.7.2 and like the
 | `src/transport`, `src/net` | TCP server (ports per profile), TCP client |
 | `src/control` | Loopback HTTP + WS control API; `catalogo.ts` is the full command inventory |
 | `src/recorder` | JSONL traffic recording and replay |
-| `src/mcp` | stdio MCP server that only adapts the control API |
+| `src/mcp` | MCP: tool definitions over the catalog, stdio adapter of the control API (`pump-sim mcp`), streamable HTTP endpoint `/mcp` of the control server (`http.ts`) |
 | `src/diff` | Differential test runner and scripts (`roteiros.ts`, `acoes.ts`), recorded 2.7.2 oracle (`oraculo.ts`) |
-| `src/ui` | Serving of the web UI assets, browser launcher |
-| `src/cli.ts`, `src/sim.ts`, `src/index.ts` | CLI, `PumpSim` facade, library exports |
+| `src/ui` | Serving of the web UI assets, browser launcher, window-host launcher (`janela.ts`), the executable's log file (`log.ts`), the `--lembrar` file (`lembrar.ts`) |
+| `src/cli.ts`, `src/sim.ts`, `src/index.ts`, `src/versao.ts` | CLI, `PumpSim` facade, library exports, package version |
 | `ui/` | Static web UI: plain ES modules, no build step; fonts/icons bundled in `ui/fonts/` |
-| `tools/` | `build-sea.mjs` (Windows single executable), `gen-icons.mjs` + `icon/` (raster icons from `ui/icone.svg`), `gen-icon-subset.mjs` + `fonts/` (the UI icon-font subset from the full Material Symbols), `driver-simuladorcbc/` (bench UI driver, PowerShell) and `driver-go/` (its Go port, one 32-bit `.exe`) |
+| `tools/` | `build-sea.mjs` (Windows single executable, GUI subsystem via `pe.mjs`), `gen-icons.mjs` + `icon/` (raster icons from `ui/icone.svg`), `gen-icon-subset.mjs` + `fonts/` (the UI icon-font subset from the full Material Symbols), `driver-simuladorcbc/` (bench UI driver, PowerShell), `driver-go/` (its Go port, one 32-bit `.exe`) and `window-go/` (the executable's frameless WebView2 window, embedded by `build-sea.mjs`) |
 | `test/` | Vitest suites, golden tests |
 
 ## Sources of truth
@@ -91,6 +91,8 @@ Horustech, Concept). It speaks the protocol like SimuladorCBC 2.7.2 and like the
 - Only through the release workflow (`.github/workflows/release.yml`): tag `v*` equal to the
   `package.json` version, built by GitHub Actions, signed via SignPath once configured
   ([CODE_SIGNING.md](CODE_SIGNING.md)).
+- Every release needs a `CHANGELOG.md` entry for its version (at most 5 short bullets): the release
+  notes open with it (`tools/changelog.mjs`), and the release fails without it.
 - Release binaries are only built by the release workflow; until SignPath is configured they are
   unsigned and the release notes say so. Never upload a locally built binary as a release asset.
 - npm releases are only staged by the release workflow (`npm` job, `npm stage publish` over

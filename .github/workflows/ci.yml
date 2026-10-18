@@ -36,3 +36,23 @@ jobs:
       - run: go vet ./...
       - run: GOOS=windows GOARCH=386 go vet ./...
       - run: go test ./...
+
+  window-go:
+    # tools/window-go (the frameless window host of the Windows executable, DECISIONS §32): the pure
+    # parts (message protocol, saved position, icon, runtime lookup) are tested on Linux; the Win32 and
+    # WebView2 files are vetted and linked for windows/amd64, the target build-sea.mjs embeds.
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: tools/window-go
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: tools/window-go/go.mod
+          cache-dependency-path: tools/window-go/go.sum
+      - run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
+      - run: go vet ./...
+      - run: GOOS=windows GOARCH=amd64 go vet ./...
+      - run: go test ./...
+      - run: CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -trimpath -ldflags="-s -w -H windowsgui" -o /dev/null .

@@ -42,7 +42,11 @@ export default {
     const portas = est.portas.map((p) => p.logica);
     const porta = Number(u.porta ?? portas[0] ?? 2001);
     const q = quadroDe(u);
-    const chipKK = u.modoKK === 'auto' ? `KK ${q.kk} · CALCULADO` : u.modoKK === 'sem' ? 'SEM KK' : 'KK MANUAL';
+    // Manual / no KK: say when the frame will be dropped for its checksum (a KK pasted from another
+    // nozzle, e.g. `&T04U37` carries the KK of `&T08U`: the concentrator stays silent, DECISIONS §33 U6).
+    const kkRuim = u.modoKK !== 'auto' && classeKK(q.quadro, 'rx') === 'bad';
+    const esperado = u.modoKK === 'manual' ? kk(q.corpo.slice(0, -2)) : kk(q.corpo);
+    const chipKK = u.modoKK === 'auto' ? `KK ${q.kk} · CALCULADO` : kkRuim ? `KK NÃO CONFERE · ESPERADO ${esperado}` : u.modoKK === 'sem' ? 'SEM KK' : 'KK MANUAL';
     const entregaOpts = [['local', 'Parser local'], ...portas.map((p) => [`porta:${p}`, `Pela porta ${p}`])];
     const entregaAtual = u.entrega === 'porta' ? `porta:${porta}` : 'local';
     const ult = u.ultimo;
@@ -74,7 +78,7 @@ export default {
           <div class="card-b fx col gap12">
             <div class="row gap8"><label class="inp cmd" style="flex:1"><span class="faint">(</span><input data-campo="texto" data-enter="enviar" value="${e(u.texto)}" spellcheck="false" aria-label="Comando"><span class="faint">)</span></label>
               ${seg([['auto', 'KK automático'], ['sem', 'Sem KK'], ['manual', 'Manual']], u.modoKK, 'modoKK')}</div>
-            <div class="prev"><span class="faint">quadro</span><span>(${e(q.corpo)}${q.kk ? `<span class="kk">${q.kk}</span>` : ''})</span><span class="chip">${chipKK}</span></div>
+            <div class="prev"><span class="faint">quadro</span><span>(${e(q.corpo)}${q.kk ? `<span class="kk">${q.kk}</span>` : ''})</span><span class="chip${kkRuim ? ' ruim' : ''}"${kkRuim ? ' title="O concentrador descarta o quadro com KK errado e não responde"' : ''}>${chipKK}</span></div>
             <div class="row gap8"><span class="lbl">Entregar</span>${seg(entregaOpts, entregaAtual, 'entrega')}
               <span class="small faint">${u.entrega === 'porta' ? 'abre uma conexão TCP: passa pelas falhas, pela gravação e mexe no ponteiro da porta' : 'sem conexão: só o parser, com o ponteiro da porta escolhida'}</span>
               <button class="btn pri" style="margin-left:auto" data-act="enviar"><span class="ms s16">send</span>Enviar</button></div>

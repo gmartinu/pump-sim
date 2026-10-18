@@ -300,8 +300,10 @@ describe('shell da UI (app.js) contra a API de controle de verdade', () => {
   const janela: Record<string, (ev: unknown) => unknown> = {};
   let local: { hash: string };
   const corpoBody = { className: '', classList: { contains: (c: string) => corpoBody.className.split(' ').includes(c) } };
+  const documentoHtml = { className: '' };
   const guardados = new Map<string, string>();
-  let escuroNoSistema = false;
+  // The OS asks for light: the UI must still start dark (DECISIONS §33 U2).
+  const escuroNoSistema = false;
 
   const esperar = async (cond: () => boolean, ms = 4000) => {
     for (let i = 0; !cond(); i++) {
@@ -333,7 +335,7 @@ describe('shell da UI (app.js) contra a API de controle de verdade', () => {
     const g = globalThis as Record<string, unknown>;
     local = { search: '', hash: '', host: `${HOST}:${s.porta}`, port: String(s.porta) } as typeof local;
     g.location = local;
-    g.document = { getElementById: () => raiz, body: corpoBody, activeElement: null };
+    g.document = { getElementById: () => raiz, body: corpoBody, documentElement: documentoHtml, activeElement: null };
     g.window = { addEventListener: (t: string, f: (ev: unknown) => unknown) => void (janela[t] = f) };
     g.matchMedia = () => ({ get matches() { return escuroNoSistema; }, addEventListener() {} });
     g.localStorage = { getItem: (k: string) => guardados.get(k) ?? null, setItem: (k: string, v: string) => void guardados.set(k, v), removeItem: (k: string) => void guardados.delete(k) };
@@ -369,24 +371,30 @@ describe('shell da UI (app.js) contra a API de controle de verdade', () => {
     expect(appUi.estado.perfil.id).toBe('simulador-2.7.2');
   });
 
-  it('tema: segue o sistema, o botão alterna claro/escuro, guarda a escolha e troca o ícone', async () => {
+  it('tema: escuro por padrão (mesmo com o sistema claro), o botão alterna, guarda a escolha e troca o ícone', async () => {
+    // DECISIONS §33 U2: the default is dark whatever the OS preference; light only by the toggle.
+    expect(escuroNoSistema).toBe(false);
+    expect(corpoBody.className).toBe('th-dark');
+    expect(documentoHtml.className).toBe('th-dark');
+    expect(registro.html).toContain('>light_mode<');
+    await clicar('g:tema');
     expect(corpoBody.className).toBe('th-light');
+    expect(documentoHtml.className).toBe('th-light');
+    expect(guardados.get('pump-sim.tema')).toBe('claro');
     expect(registro.html).toContain('>dark_mode<');
     await clicar('g:tema');
     expect(corpoBody.className).toBe('th-dark');
     expect(guardados.get('pump-sim.tema')).toBe('escuro');
-    expect(registro.html).toContain('>light_mode<');
-    await clicar('g:tema');
-    expect(corpoBody.className).toBe('th-light');
-    expect(guardados.get('pump-sim.tema')).toBe('claro');
-    // With no saved choice the page follows the OS preference.
+    // With no saved choice: dark, even when the OS asks for light.
     appUi.tema = null;
-    escuroNoSistema = true;
     await clicar('g:menu', (d) => d.menu === 'canal-1'); // any click re-renders
     expect(corpoBody.className).toBe('th-dark');
     await clicar('g:menu', (d) => d.menu === 'canal-1');
+    // The remembered choice wins over the default.
     appUi.tema = 'claro';
-    escuroNoSistema = false;
+    await clicar('g:menu', (d) => d.menu === 'canal-1');
+    expect(corpoBody.className).toBe('th-light');
+    await clicar('g:menu', (d) => d.menu === 'canal-1');
   });
 
   it('clique no botão do lado chega ao simulador pelo WS; o texto muda no ciclo seguinte', async () => {
@@ -449,5 +457,168 @@ describe('shell da UI (app.js) contra a API de controle de verdade', () => {
     local.hash = '#/nao-existe';
     janela.hashchange!({});
     expect(appUi.tela).toBe('pista');
+  });
+});
+
+describe('Pista: preço da lista de bicos = display = &T U', () => {
+  /** Price shown in the nozzle row of `bico` inside a side's HTML. */
+  const precoDaLista = (html: string, bico: string) => {
+    const m = new RegExp(`data-bico="${bico}">[\\s\\S]*?<span class="ppl">([^<]+)</span>`).exec(html);
+    expect(m, `linha do bico ${bico}`).not.toBeNull();
+    return m![1]!;
+  };
+  const precoDoDisplay = (html: string) => /<span class="dl">Preço<\/span><span class="dv"[^>]*>([^<]+)<\/span>/.exec(html)![1]!;
+
+  for (const perfil of ['simulador-2.7.2', 'cbc-32'] as const) {
+    it(`${perfil}: com preço pendente, a lista mostra o mesmo valor do display e do &T U (não o vigente)`, async () => {
+      const { cmd, app, atualizar } = await criar(perfil);
+      const { default: pista } = await tela('pista');
+      const a = await app();
+      // A fresh nozzle 04: 1120 current, 1123 pending; `&T U` replies the pending one (precoConfigurado).
+      const p = await cmd<{ vigentes: number[]; pendentes: (number | null)[]; quadro: string }>('get_precos', { bico: '04' });
+      expect(p.vigentes[0]).toBe(1120);
+      expect(p.pendentes[0]).toBe(1123);
+      expect(p.quadro).toContain('1123');
+      let html = ladoHtml(pista.render(a), 1, 1);
+      expect(precoDoDisplay(html)).toBe('1,123');
+      expect(precoDaLista(html, '04')).toBe('1,123');
+      expect(precoDaLista(html, '44')).toBe('2,123');
+
+      // Fueling: the pending price becomes current; display and list still agree.
+      await cmd('retirar_bico', { bico: '04' });
+      await cmd('avancar_tempo', { ms: 2000 });
+      await atualizar(a);
+      html = ladoHtml(pista.render(a), 1, 1);
+      expect(precoDoDisplay(html)).toBe('1,123');
+      expect(precoDaLista(html, '04')).toBe('1,123');
+    });
+  }
+});
+
+describe('Tráfego: checksum do TX e quadros ligados à falha injetada', () => {
+  type Linha = { n: number; ts: number; porta: number; conexao: number | null; dir: string; texto: string; falha?: boolean; falhaTipo?: string; quadroFalha?: string; alvo?: number; verbo?: string };
+  const mod = async () =>
+    (await tela('trafego')) as unknown as Tela & {
+      ligarFalhas(rows: Linha[]): Linha[];
+      noFundo(el: { scrollTop: number; scrollHeight: number; clientHeight: number }, folga?: number): boolean;
+      seguirFim(u: Record<string, unknown>, el: { scrollTop: number; scrollHeight: number; clientHeight: number } | null): boolean;
+    };
+  const fmt = async () => (await import(pathToFileURL(path.join(dirUi(), 'js', 'fmt.js')).href)) as { classeKK(q: string, dir: string, falha?: string): string; kk(c: string): string };
+  const S = '(SLLFFLLFFLLFFLLFFLLFFLLFFLLFFLLFFFFDD6V3.7M1.0G78)';
+
+  it('classeKK: TX com KK certo é válido, TX de formato com KK e KK errado é inválido, (S…) sem KK', async () => {
+    const { classeKK, kk } = await fmt();
+    expect(kk('TU0400001123')).toBe('94');
+    expect(classeKK('(TU040000112394)', 'tx')).toBe('ok');
+    expect(classeKK('(TU04000011239F)', 'tx')).toBe('bad');
+    expect(classeKK('(TU040000112ZZ)', 'tx')).toBe('bad');
+    expect(classeKK('(TL0400000000ZZ)', 'tx')).toBe('bad');
+    expect(classeKK('((TL0800000000B0)', 'tx')).toBe('ok');
+    expect(classeKK(S, 'tx')).toBe('na');
+    expect(classeKK('(M04)', 'tx')).toBe('na');
+    expect(classeKK('(U04)', 'tx')).toBe('na');
+    // The checksum fault rewrites the two chars before ")" even on a reply with no KK.
+    expect(classeKK(S, 'tx', 'checksum_errado')).toBe('bad');
+    expect(classeKK(S, 'tx', 'atraso')).toBe('na');
+    // RX unchanged.
+    expect(classeKK(`(&T04U${kk('&T04U')})`, 'rx')).toBe('ok');
+    expect(classeKK('(&T04UZZ)', 'rx')).toBe('bad');
+    expect(classeKK('(&S)', 'rx')).toBe('na');
+  });
+
+  it('ligarFalhas: rx → falha → tx liga a falha ao pedido e à resposta alterada; o &S anterior e o seguinte ficam de fora', async () => {
+    const { ligarFalhas } = await mod();
+    const r = ligarFalhas([
+      { n: 1, ts: 1, porta: 2001, conexao: 3, dir: 'rx', texto: '(&S)' },
+      { n: 2, ts: 1, porta: 2001, conexao: 3, dir: 'tx', texto: S },
+      { n: 3, ts: 2, porta: 2001, conexao: 3, dir: 'rx', texto: '(&S)' },
+      { n: 4, ts: 2, porta: 2001, conexao: null, dir: 'ev', falha: true, falhaTipo: 'checksum_errado', quadroFalha: '(&S)', texto: 'falha injetada: checksum_errado (&S) em (&S)' },
+      { n: 5, ts: 2, porta: 2001, conexao: 3, dir: 'tx', texto: S.replace('G78', 'G22') },
+      { n: 6, ts: 3, porta: 2001, conexao: 3, dir: 'rx', texto: '(&S)' },
+      { n: 7, ts: 3, porta: 2001, conexao: 3, dir: 'tx', texto: S },
+    ]);
+    expect(r.map((x) => x.falhaTipo ?? null)).toEqual([null, null, 'checksum_errado', 'checksum_errado', 'checksum_errado', null, null]);
+    expect(r[3]!.alvo).toBe(5);
+    expect(r[4]!.verbo).toBe('&S');
+  });
+
+  it('ligarFalhas: falha que engole a resposta (sem_resposta) não puxa a resposta do pedido seguinte', async () => {
+    const { ligarFalhas } = await mod();
+    const r = ligarFalhas([
+      { n: 1, ts: 1, porta: 2001, conexao: 3, dir: 'rx', texto: '(&S)' },
+      { n: 2, ts: 1, porta: 2001, conexao: null, dir: 'ev', falha: true, falhaTipo: 'sem_resposta', quadroFalha: '(&S)', texto: 'falha injetada: sem_resposta (&S) em (&S)' },
+      { n: 3, ts: 2, porta: 2001, conexao: 3, dir: 'rx', texto: '(&S)' },
+      { n: 4, ts: 2, porta: 2001, conexao: 3, dir: 'tx', texto: S },
+      // Another port with the same frame is not affected.
+      { n: 5, ts: 2, porta: 1771, conexao: 4, dir: 'rx', texto: '(&S)' },
+      { n: 6, ts: 2, porta: 1771, conexao: 4, dir: 'tx', texto: S },
+    ]);
+    expect(r[0]!.falhaTipo).toBe('sem_resposta');
+    expect(r[1]!.alvo).toBeUndefined();
+    expect(r.slice(2).every((x) => !x.falhaTipo)).toBe(true);
+  });
+
+  it('render: a resposta alterada sai "inválido" e marcada; o filtro Falhas mostra o pedido, o evento e a resposta', async () => {
+    const { cmd, app } = await criar('simulador-2.7.2');
+    const { default: trafego } = await tela('trafego');
+    const a = (await app()) as App & { trafego: Linha[] };
+    a.trafego = [
+      { n: 1, ts: 1, porta: 2001, conexao: 3, dir: 'rx', texto: '(&S)' },
+      { n: 2, ts: 1, porta: 2001, conexao: null, dir: 'ev', falha: true, falhaTipo: 'checksum_errado', quadroFalha: '(&S)', texto: 'falha injetada: checksum_errado (&S) em (&S)' },
+      { n: 3, ts: 1, porta: 2001, conexao: 3, dir: 'tx', texto: S.replace('G78', 'G22') },
+      { n: 4, ts: 2, porta: 2001, conexao: 3, dir: 'rx', texto: '(&S)' },
+      { n: 5, ts: 2, porta: 2001, conexao: 3, dir: 'tx', texto: S },
+    ];
+    void cmd;
+    const html = trafego.render(a);
+    const linha = (n: number) => new RegExp(`<div class="con-row([^"]*)"[^>]*data-key="t${n}"[^>]*>([\\s\\S]*?)</div>`).exec(html)!;
+    expect(linha(3)[1]).toContain('afetado');
+    expect(linha(3)[2]).toContain('inválido');
+    expect(linha(5)[1]).not.toContain('afetado');
+    expect(linha(5)[2]).toContain('sem KK');
+    expect(linha(2)[1]).toContain('falha');
+    // Clicking the event selects the reply it changed.
+    expect(linha(2)[0]).toContain('data-n="3"');
+    a.ui.trafego.verbo = 'Falhas';
+    const keys = [...trafego.render(a).matchAll(/data-key="t(\d+)"/g)].map((m) => Number(m[1]));
+    expect(keys).toEqual([1, 2, 3]);
+  });
+
+  it('console segue o fim ao vivo; para quando o usuário rola para cima; volta no fim; pausado não mexe', async () => {
+    const { noFundo, seguirFim } = await mod();
+    const el = { scrollTop: 0, scrollHeight: 2000, clientHeight: 560 };
+    const u: Record<string, unknown> = { pausado: null };
+    expect(seguirFim(u, el)).toBe(true);
+    expect(el.scrollTop).toBe(2000);
+    // Browsers clamp scrollTop; emulate it.
+    el.scrollTop = el.scrollHeight - el.clientHeight;
+    u.topo = el.scrollTop;
+    // New lines: the content grows, the console follows.
+    el.scrollHeight = 2400;
+    expect(noFundo(el)).toBe(false);
+    expect(seguirFim(u, el)).toBe(true);
+    el.scrollTop = el.scrollHeight - el.clientHeight;
+    u.topo = el.scrollTop;
+    // The user scrolls up and a render lands before the scroll event: following stops, nothing moves.
+    el.scrollTop = 300;
+    el.scrollHeight = 2600;
+    expect(seguirFim(u, el)).toBe(false);
+    expect(u.seguir).toBe(false);
+    expect(el.scrollTop).toBe(300);
+    expect(seguirFim(u, el)).toBe(false);
+    // Back at the bottom: the scroll handler sees it and following resumes.
+    const { default: trafego } = await tela('trafego');
+    const a = { ui: { trafego: u } } as unknown as App;
+    el.scrollTop = el.scrollHeight - el.clientHeight;
+    (trafego as unknown as { aoRolar(app: App, el: unknown): void }).aoRolar(a, { ...el, classList: { contains: (c: string) => c === 'con-body' } });
+    expect(u.seguir).toBe(true);
+    el.scrollHeight = 3000;
+    expect(seguirFim(u, el)).toBe(true);
+    expect(el.scrollTop).toBe(3000);
+    // Paused ("Pausado"): never moves.
+    u.pausado = [];
+    el.scrollTop = 10;
+    expect(seguirFim(u, el)).toBe(false);
+    expect(el.scrollTop).toBe(10);
   });
 });

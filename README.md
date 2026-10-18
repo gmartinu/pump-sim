@@ -71,7 +71,7 @@ one port at a time (2001/1771/7002) and a single pointer on `simulador-2.7.2`.
 pump-sim --profile simulador-2.7.2                 # listens on 2001 (or --ports 1771 | 7002)
 pump-sim --profile horustech-48                    # 2001, 1771 and 857 at the same time
 pump-sim --profile cbc-32 --ports 2001,1771 --control 7070 --record trafego.jsonl
-pump-sim mcp --control http://127.0.0.1:7070       # stdio MCP server
+pump-sim mcp --control http://127.0.0.1:7070       # stdio MCP server (the API also serves MCP at /mcp)
 pump-sim --listar-perfis
 ```
 
@@ -99,11 +99,26 @@ Identfid, Diff, Gravação & agentes. No build step: the files in `ui/` are plai
 
 One file, `pump-sim-win-x64.exe` (Node 22.20.0 single executable application with the UI inside):
 double-click it and it starts as `--ui --lembrar` (simulator on 2001, UI on `http://127.0.0.1:7070/`,
-or the first free port up to 7089 when 7070 is taken, as the console prints,
-in an Edge app window, then Chrome, then the default browser; last configuration in
-`%APPDATA%\pump-sim\ultima-config.json`). Any argument works as in the CLI
-(`pump-sim-win-x64.exe --profile cbc-32 --ports 2001`). The console window is the simulator's log;
-closing it stops the simulator.
+or the first free port up to 7089 when 7070 is taken,
+in its own window without the Windows title bar; last configuration in
+`%APPDATA%\pump-sim\ultima-config.json`). The window is a small WebView2 host embedded in the
+executable ([`tools/window-go`](tools/window-go/README.md)): the UI's top bar drags it and carries
+minimize / maximize / close, it resizes and snaps like any Windows 11 window and remembers its size and
+position in `%APPDATA%\pump-sim\janela.json`. Without the WebView2 Runtime (it ships with Windows 11
+and current Windows 10) the UI opens in an Edge app window, then Chrome, then the default browser.
+
+The executable is the **double-click app**: it is a Windows GUI program, so no console window opens.
+Closing its window stops the simulator; with the browser fallback, use **⋮ → Encerrar pump-sim** in the top bar
+(it asks first, closes the ports and ends the process). Everything
+it would print goes to `%LOCALAPPDATA%\pump-sim\logs\pump-sim.log` (UTF-8, rotated at 5 MB, 3 old files
+kept), which the UI shows in **Gravação & agentes → Log do executável → Ver logs**. A fatal startup
+error opens a dialog that names the log file.
+
+**On Windows the command line is `npx pump-sim`** (Node 22+), not the executable: run from a terminal,
+the executable does not print anything (a GUI program has no console to write to). Arguments still
+work (`pump-sim-win-x64.exe --profile cbc-32 --ports 2001` starts that configuration, with its output in
+the log), and `pump-sim-win-x64.exe --help` writes the help to the log and opens it in Notepad
+(`%LOCALAPPDATA%\pump-sim\logs\ajuda.txt`). Redirected output (`> saida.txt`) still receives it.
 
 Build it on any OS with Node **22.20.0** exactly (the SEA blob follows the Node version):
 
@@ -112,10 +127,12 @@ npm run build:sea:win                                   # → build/sea/pump-sim
 npm run build:sea:win -- --cache <dir> --out <file.exe> # reuse a download folder / pick the output
 ```
 
-It bundles `dist/cli.js` with esbuild into `build/sea/pump-sim.cjs`, lists every file of `ui/` as a SEA
-asset, downloads `node-v22.20.0-win-x64.zip` from nodejs.org, checks its sha256 against
+It bundles `dist/cli.js` with esbuild into `build/sea/pump-sim.cjs`, builds the window host with Go
+(`tools/window-go`, so the build also needs Go, version in its `go.mod`), lists every file of `ui/` and the
+host (with its sha256) as SEA assets, downloads `node-v22.20.0-win-x64.zip` from nodejs.org, checks its sha256 against
 `SHASUMS256.txt` (stops on mismatch), removes `node.exe`'s Authenticode signature and injects the blob
-with postject, then sets the pump-sim icon (`tools/icon/pump-sim.ico`) and version info with resedit
+with postject, then sets the pump-sim icon (`tools/icon/pump-sim.ico`) and version info with resedit,
+switches the PE subsystem from console to Windows GUI (recomputing the PE checksum, `tools/pe.mjs`)
 and reads the PE back to check them. The bundle also runs on its own: `node build/sea/pump-sim.cjs --ui`.
 The raster icons come from `ui/icone.svg`; after changing it, run `node tools/gen-icons.mjs` (needs
 Chrome) and commit the outputs.
@@ -157,6 +174,9 @@ HTTP + WebSocket on `127.0.0.1` (`--control-host` changes it). No framework (`no
 | `GET /api/sims` | Instances (`sim_id`) |
 | `GET /api/servidor` | WS clients and the last calls from agents (MCP/HTTP/WS, with origin) |
 | `GET /api/gravacoes/<nome>.jsonl` | Download of a recording in the recordings folder |
+| `POST\|GET\|DELETE /mcp` | MCP over streamable HTTP (below) |
+| `GET /api/mcp`, `POST /api/mcp {"ativo": bool}` | Status of the HTTP MCP endpoint (on/off, sessions), switch it on/off |
+| `GET /api/logs`, `POST /api/encerrar` | Tail of the executable's log; end the process (CLI only: 501 elsewhere). Loopback peers only |
 | `GET /`, `/ui/*` | The web UI |
 | `WS /ws` | Pushes `log` (RX/TX/ERRO/INFO), `evento`, `conexao`, `perfil`, `reset`, `trafego` (socket reads/writes with the connection), `falha` (a fault fired); accepts `{id, comando, args}` and replies `{id, ok, resultado\|erro}` |
 
@@ -203,12 +223,26 @@ false` keeps the frame from even reaching the simulator.
 
 ## MCP
 
-`pump-sim mcp --control http://127.0.0.1:7070` starts a stdio MCP server that only adapts the API:
-the tools are the catalog above, and each call becomes a `POST /api/comandos/<tool>`. Example
-MCP client configuration:
+The control API serves MCP over **streamable HTTP** at `http://127.0.0.1:<control-port>/mcp`, in the
+same process (on by default; `--sem-mcp-http` starts it off, and "Gravação & agentes" in the UI switches
+it at runtime and shows the connected clients). The tools are the catalog above. Same rules as the rest
+of the API: loopback only, foreign `Origin`/`Host` refused, JSON-only POST.
+
+```sh
+claude mcp add --transport http pump-sim http://127.0.0.1:7070/mcp
+```
 
 ```json
-{ "mcpServers": { "pump-sim": { "command": "pump-sim", "args": ["mcp", "--control", "http://127.0.0.1:7070"] } } }
+{ "mcpServers": { "pump-sim": { "type": "http", "url": "http://127.0.0.1:7070/mcp" } } }
+```
+
+Use the actual control port (the UI's "Copiar config" fills it in, also after a fallback to 7071+), for
+Claude Code, Claude Desktop, Cursor and VS Code. `pump-sim mcp --control http://127.0.0.1:7070` is the
+stdio variant (for clients that only start stdio servers, such as Claude Desktop's config file): each
+call becomes a `POST /api/comandos/<tool>`.
+
+```json
+{ "mcpServers": { "pump-sim": { "command": "npx", "args": ["-y", "pump-sim", "mcp", "--control", "http://127.0.0.1:7070"] } } }
 ```
 
 ## Recording and replay

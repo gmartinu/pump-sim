@@ -47,13 +47,25 @@ export function kk(corpo) {
 const SEM_KK = /^\((&[SAVIRH]|&KW|&E|&F|\?A80|\?V95|\?S92)/;
 
 /**
- * Checksum column of the traffic console: `ok` when the 2 chars before `)` are the KK of the rest,
- * `bad` for a request that should carry one and does not match, `na` otherwise (no KK).
+ * Replies that carry a KK (the recorded 2.7.2 oracle, test/fixtures/oracle-2.7.2: `&T` replies, `&F`,
+ * `&KR`/`&KW`, `LF`, the `&A`/`&@`/`a<n>` record reads and the bare `&A` 52). `(S…)`, `(M04)`, `(U04)`,
+ * `(C01…)` and the other acks carry none.
  */
-export function classeKK(quadro, dir) {
+const TX_COM_KK = /^\(\(?(?:T[A-Za-z$]|F[AGNR]|K[RW]|LF|[aA@][0-9A-F])|^\([0-9A-F]{50}\)$/;
+
+/**
+ * Checksum column of the traffic console: `ok` when the 2 chars before `)` are the KK of the rest,
+ * `bad` for a frame that should carry one and does not match (a request whose verb carries a KK, or
+ * a reply of a KK-carrying shape), `na` otherwise (no KK). `falha` is the injected fault tied to the
+ * frame: a `checksum_errado` reply is always `bad`, whatever its shape (the fault rewrites the two chars
+ * before the `)` even on a reply with no KK, such as the `&S` one).
+ */
+export function classeKK(quadro, dir, falha) {
   const m = /^\((.*)([0-9A-Fa-f]{2})\)$/.exec(quadro);
+  if (dir === 'tx' && falha === 'checksum_errado') return 'bad';
   if (m && kk(m[1]) === m[2]) return 'ok';
   if (dir === 'rx' && /^\([&?]/.test(quadro) && !SEM_KK.test(quadro) && quadro.length > 5) return 'bad';
+  if (dir === 'tx' && TX_COM_KK.test(quadro)) return 'bad';
   return 'na';
 }
 

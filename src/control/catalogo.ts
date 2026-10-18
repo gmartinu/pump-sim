@@ -237,7 +237,9 @@ export const CATALOGO: readonly DefComando[] = [
   d('set_rede_ac', 'controle', 'Rede AC ligada/desligada (bateria)', obj({ ligada: bool('Ligada') }, ['ligada'])),
   d('set_bateria', 'controle', 'Tensão da bateria', obj({ volts: num('Volts (ex.: 12.0)') }, ['volts'])),
   d('set_dip', 'controle', 'DIP switch 1..4', obj({ n: int('1..4', { minimum: 1, maximum: 4 }), on: bool('Ligada') }, ['n', 'on'])),
-  d('set_velocidade', 'controle', 'Velocidade da vazão: lento/normal/rapido ou o tick em ms', obj({ velocidade: { anyOf: [{ enum: ['lento', 'normal', 'rapido'] }, { type: 'integer', minimum: 1 }], description: 'Velocidade' } }, ['velocidade'])),
+  // The tick in ms may be fractional: simulador-2.7.2 runs at 109.375 (§29), and `--lembrar` restores
+  // the value get_estado_simulador reports (DECISIONS §35).
+  d('set_velocidade', 'controle', 'Velocidade da vazão: lento/normal/rapido ou o tick em ms', obj({ velocidade: { anyOf: [{ enum: ['lento', 'normal', 'rapido'] }, { type: 'number', minimum: 1 }], description: 'Velocidade' } }, ['velocidade'])),
   d(
     'set_relogio_simulado',
     'controle',

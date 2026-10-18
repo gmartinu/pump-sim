@@ -47,7 +47,7 @@ function ladoDetalhado(app, l) {
       const p = b.casas?.preco ?? 3;
       return `<div class="bico${on ? ' on' : ''}" data-act="radio" data-c="${l.canal}" data-e="${l.endereco}" data-bico="${b.codigo}">
         <span class="radio${on ? ' on' : ''}"></span><span class="hex">${b.codigo}</span>
-        <span class="prod"><b>Bico ${b.posicao}${b.combustivel ? ` · comb. ${b.combustivel}` : ''}</b><small>${num(b.encerranteMl / 1000, 2)} L</small><small>R$ ${num(b.encerranteValorMil / 1000, 2)}</small></span>
+        <span class="prod"><b>Bico ${b.posicao}${b.combustivel ? ` · comb. ${b.combustivel}` : ''}</b><small title="Encerrante do bico (&amp;T L / &amp;T $): soma o abastecimento quando ele termina">${num(b.encerranteMl / 1000, 2)} L</small><small title="Encerrante do bico (&amp;T L / &amp;T $): soma o abastecimento quando ele termina">R$ ${num(b.encerranteValorMil / 1000, 2)}</small></span>
         <span class="ppl">${num(precoBico(b, l.nivelPreco), p)}</span></div>`;
     })
     .join('');

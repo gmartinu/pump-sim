@@ -25,6 +25,10 @@ jobs:
         with:
           node-version: '22.20.0'
           cache: npm
+      # Every release note opens with this version's CHANGELOG.md entry (DECISIONS §33 C5): fail early
+      # when it is missing, before anything is built or staged.
+      - name: CHANGELOG entry for the tag
+        run: node tools/changelog.mjs "$GITHUB_REF_NAME"
       - run: npm ci
       - run: npm run ci
 
@@ -74,6 +78,11 @@ jobs:
         run: |
           v="$(node -p "require('./package.json').version")"
           [ "v$v" = "$GITHUB_REF_NAME" ] || { echo "tag $GITHUB_REF_NAME != package.json v$v"; exit 1; }
+      # build-sea.mjs builds the window host (tools/window-go, DECISIONS §32) and embeds it.
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: tools/window-go/go.mod
+          cache-dependency-path: tools/window-go/go.sum
       - run: npm ci
       - run: npm run build:sea:win
       - id: upload-unsigned
@@ -117,6 +126,8 @@ jobs:
     env:
       SIGNED: ${{ needs.sign.result == 'success' }}
     steps:
+      # CHANGELOG.md and tools/changelog.mjs for the "Changes" section of the notes.
+      - uses: actions/checkout@v4
       - if: env.SIGNED == 'true'
         uses: actions/download-artifact@v4
         with:
@@ -135,10 +146,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           if [ "$SIGNED" = "true" ]; then
-            notes="Signed through SignPath (CODE_SIGNING.md)."
+            assinatura="Signed through SignPath (CODE_SIGNING.md)."
           else
-            notes="Not code-signed yet (SignPath Foundation application pending); Windows SmartScreen will warn. Verify the download against pump-sim-win-x64.exe.sha256."
+            assinatura="Not code-signed yet (SignPath Foundation application pending); Windows SmartScreen will warn. Verify the download against pump-sim-win-x64.exe.sha256."
           fi
+          # Notes: the short changelog first, then the signing note; --generate-notes appends the PR list.
+          node tools/changelog.mjs "$GITHUB_REF_NAME" > notes.md
+          printf '\n%s\n' "$assinatura" >> notes.md
           gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" \
-            --notes "$notes" --generate-notes --verify-tag \
+            --notes-file notes.md --generate-notes --verify-tag \
             out/pump-sim-win-x64.exe out/pump-sim-win-x64.exe.sha256

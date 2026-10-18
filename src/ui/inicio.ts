@@ -1,9 +1,8 @@
-import { spawnSync } from 'node:child_process';
-
 /**
  * Startup behaviour of `--ui` and of the Windows executable (double click), kept out of cli.ts
- * so it can be unit-tested: control-port fallback, the "press Enter" pause on a fatal error and
- * the UTF-8 console code page.
+ * so it can be unit-tested: control-port fallback and the fatal-error text and dialog. The
+ * executable is a GUI-subsystem program since DECISIONS §34 (no console: no "press Enter" pause,
+ * no `chcp`; its output goes to the log file of `src/ui/log.ts`).
  */
 
 /** First control port `--ui` tries when `--control` is missing. */
@@ -53,15 +52,6 @@ export function mensagemFalhaControle(r: { erro: Error; tentadas: number[] }, ex
   return `[pump-sim] não consegui abrir a API de controle/UI (${motivo}); o simulador segue sem UI — ${dica}`;
 }
 
-/**
- * Whether a fatal error waits for Enter before exiting: only the Windows executable started with
- * no arguments (double click), with an interactive console. A script, a pipe or an explicit
- * command line keeps the immediate exit with code 1.
- */
-export function deveEsperarEnter(c: { executavel: boolean; semArgumentos: boolean; tty: boolean }): boolean {
-  return c.executavel && c.semArgumentos && c.tty;
-}
-
 /** Portuguese text of a fatal startup error. */
 export function mensagemErroFatal(e: unknown): string {
   const m = e instanceof Error ? e.message : String(e);
@@ -71,15 +61,27 @@ export function mensagemErroFatal(e: unknown): string {
 }
 
 /**
- * Switches the Windows console to UTF-8 (code page 65001) so the Portuguese messages do not show
- * as mojibake in a cp850 console. Runs `chcp` in a child that shares this console; best effort.
+ * Stack trace safe to log from the executable: every absolute path in an `at …` frame (the SEA main
+ * is the bundle's build-machine path, e.g. /Users/<dev>/…/build/sea/pump-sim.cjs) becomes its file
+ * basename, keeping line and column. The message lines are left as they are.
  */
-export function consoleUtf8(plataforma: NodeJS.Platform = process.platform): boolean {
-  if (plataforma !== 'win32') return false;
-  try {
-    const r = spawnSync('cmd.exe', ['/d', '/s', '/c', 'chcp 65001 >NUL'], { stdio: 'inherit', windowsVerbatimArguments: true });
-    return r.status === 0;
-  } catch {
-    return false;
-  }
+export function pilhaSemCaminhos(pilha: string): string {
+  const caminho = /(?<=[\s(])(?:file:\/\/\/?)?(?:[A-Za-z]:[\\/]|\/)[^\s()]*[\\/]([^\\/\s()]+:\d+(?::\d+)?)/g;
+  return pilha
+    .split('\n')
+    .map((l) => (/^\s*at\s/.test(l) ? l.replace(caminho, '$1') : l))
+    .join('\n');
+}
+
+/** Longest message passed to the dialog (the host's command line is limited to 32767 characters). */
+export const MAX_DIALOGO = 2000;
+
+/**
+ * Text of the fatal-error dialog of the executable: the message without the `[pump-sim] ` prefix,
+ * truncated, plus where the log file is (when there is one).
+ */
+export function textoDialogoErro(mensagem: string, arquivoLog: string | null): string {
+  let m = mensagem.replace(/^\[pump-sim\] /, '').trim();
+  if (m.length > MAX_DIALOGO) m = `${m.slice(0, MAX_DIALOGO - 1)}…`;
+  return arquivoLog ? `${m}\n\nDetalhes no log: ${arquivoLog}` : m;
 }

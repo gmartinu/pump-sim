@@ -8,8 +8,12 @@ export const todosBicos = (app) => lados(app).flatMap((l) => l.bicos.map((b) => 
 export const bicoPorCodigo = (app, cod) => todosBicos(app).find((b) => b.codigo === cod);
 export const portasAbertas = (app) => (app.estado?.portas ?? []).map((p) => p.logica);
 export const ehHorustechVisao = (app) => (app.estado?.perfil.canais ?? 8) > 8;
-/** Price of the nozzle at the side's level, in R$/L. */
-export const precoBico = (b, nivel = 0) => (b.precos[nivel] ?? 0) / 10 ** (b.casas?.preco ?? 3);
+/**
+ * Price of the nozzle at the side's level, in R$/L: the pending price when there is one, else the
+ * current one — the core's `precoConfigurado`, which is what `&T U` replies and what the display shows
+ * at rest (a fresh 2.7.2 nozzle 04 has 1120 current and 1123 pending: `(TU0400001123…)`, 1,123).
+ */
+export const precoBico = (b, nivel = 0) => (b.precosPendentes?.[nivel] ?? b.precos[nivel] ?? 0) / 10 ** (b.casas?.preco ?? 3);
 export const rotuloBico = (b) => `Canal ${b.canal} · end ${b.endereco}${b.combustivel ? ` · combustível ${b.combustivel}` : ''}`;
 
 /** The nozzle moved by the side's button: the lifted one, else the radio's (default 1st). */

@@ -19,28 +19,86 @@ function ui(app) {
   return app.ui.trafego;
 }
 
-/** Rows with the verb of the request for tx rows (the last rx on the same connection). */
+/**
+ * Rows of the console with, for a tx row, the verb of its request (the last rx on the same
+ * connection), and the frames an injected fault touched. The `falha` event comes between the request
+ * and the reply it changes (rx → falha → tx, measured over the WS): the fault is tied to the last rx
+ * of its frame on its port before the event, and to the first tx answering that same rx. A fault that
+ * swallows the reply (`sem_resposta`, `desconectar`) ties only the rx: the next reply answers another
+ * request. Linked rows carry `falhaTipo`; the event row carries `alvo` (the n of the changed tx).
+ */
+export function ligarFalhas(base) {
+  const ultimoRx = new Map(); // conexao → rx row
+  const rxPorPorta = new Map(); // porta → rx rows, newest last
+  const esperando = new Map(); // n of the rx row → event row
+  const out = [];
+  for (const r0 of base) {
+    const r = { ...r0, verbo: '' };
+    if (r.dir === 'rx') {
+      r.verbo = verbo(r.texto);
+      ultimoRx.set(r.conexao, r);
+      const l = rxPorPorta.get(r.porta) ?? [];
+      l.push(r);
+      if (l.length > 16) l.shift();
+      rxPorPorta.set(r.porta, l);
+    } else if (r.dir === 'tx') {
+      const req = ultimoRx.get(r.conexao);
+      r.verbo = req?.verbo ?? '';
+      const ev = req ? esperando.get(req.n) : undefined;
+      if (ev) {
+        esperando.delete(req.n);
+        r.falhaTipo = ev.falhaTipo;
+        r.falhaN = ev.n;
+        ev.alvo = r.n;
+      }
+    } else if (r.falha) {
+      const req = [...(rxPorPorta.get(r.porta) ?? [])].reverse().find((x) => r.quadroFalha === undefined || x.texto === r.quadroFalha);
+      if (req) {
+        req.falhaTipo ??= r.falhaTipo;
+        esperando.set(req.n, r);
+      }
+    }
+    out.push(r);
+  }
+  return out;
+}
+
+/** Rows after the filters. */
 function linhas(app) {
   const u = ui(app);
-  const base = u.pausado ?? app.trafego;
-  const ultimoVerbo = new Map();
-  const out = [];
-  for (const r of base) {
-    let v = '';
-    if (r.dir === 'rx') {
-      v = verbo(r.texto);
-      ultimoVerbo.set(r.conexao, v);
-    } else if (r.dir === 'tx') v = ultimoVerbo.get(r.conexao) ?? '';
-    out.push({ ...r, verbo: v });
-  }
+  const out = ligarFalhas(u.pausado ?? app.trafego);
   const busca = u.busca.trim().toUpperCase();
   return out.filter((r) => {
     if (u.porta !== 'todas' && String(r.porta) !== u.porta) return false;
-    if (u.verbo === 'Falhas' && !r.falha) return false;
+    if (u.verbo === 'Falhas' && !r.falha && !r.falhaTipo) return false;
     if (u.verbo !== 'Todos' && u.verbo !== 'Falhas' && r.verbo !== u.verbo) return false;
     if (busca && !String(r.texto).toUpperCase().includes(busca)) return false;
     return true;
   });
+}
+
+/** Whether a scrollable element is at (or within `folga` px of) its bottom. */
+export function noFundo(el, folga = 8) {
+  return el.scrollHeight - el.scrollTop - el.clientHeight <= folga;
+}
+
+/**
+ * Moves the console to the last line when live ("Ao vivo") and following. Returns whether it moved.
+ * The scroll event of a user scroll can land after the next render: a scrollTop below the one this
+ * function last set, away from the bottom, is the user scrolling up, so following stops there instead
+ * of snapping back.
+ */
+export function seguirFim(u, el) {
+  if (!el || u.pausado || u.seguir === false) return false;
+  if (u.el !== el) u.topo = undefined; // a new console element (screen re-entered, first frame)
+  u.el = el;
+  if (u.topo !== undefined && el.scrollTop < u.topo - 1 && !noFundo(el)) {
+    u.seguir = false;
+    return false;
+  }
+  el.scrollTop = el.scrollHeight;
+  u.topo = el.scrollTop;
+  return true;
 }
 
 const fmtFalha = (f) => {
@@ -59,13 +117,19 @@ export default {
     const portas = est.portas.map((p) => p.logica);
     const ls = linhas(app);
     const vis = ls.slice(-400);
+    const porN = new Map(vis.map((r) => [r.n, r]));
     const rows = vis
       .map((r) => {
-        const k = r.dir === 'ev' ? 'na' : classeKK(r.texto, r.dir);
+        const k = r.dir === 'ev' ? 'na' : classeKK(r.texto, r.dir, r.dir === 'tx' ? r.falhaTipo : undefined);
         const dcls = r.dir === 'rx' ? 'c-rx' : r.dir === 'tx' ? 'c-tx' : 'c-ev';
-        const nota = r.dir === 'tx' ? `${r.texto.length} chars` : '';
-        return `<div class="con-row${u.sel === r.n ? ' sel' : ''}" data-act="sel" data-n="${r.n}" data-key="t${r.n}"><span class="c-ts">${horaMs(r.ts, true)}</span><span>${e(r.porta)}</span><span>${r.conexao ? `#${r.conexao}` : ''}</span>
-          <span class="${dcls}">${r.dir.toUpperCase()}</span><span class="c-fr">${e(r.texto)} <span class="c-na">${nota}</span></span>
+        const alvo = r.falha && r.alvo !== undefined ? porN.get(r.alvo) : undefined;
+        const nota = r.dir === 'tx' ? `${r.texto.length} chars` : alvo ? `→ TX ${horaMs(alvo.ts, true)}` : '';
+        const marca = r.falha ? ' falha' : r.falhaTipo ? ' afetado' : '';
+        const tag = r.falhaTipo && !r.falha ? ` <span class="c-ftag">${e(r.falhaTipo)}</span>` : '';
+        // Clicking the fault event selects the frame it changed.
+        const n = alvo ? alvo.n : r.n;
+        return `<div class="con-row${marca}${u.sel === r.n || (alvo && u.sel === alvo.n) ? ' sel' : ''}" data-act="sel" data-n="${n}" data-key="t${r.n}"${r.falhaTipo && !r.falha ? ` title="Quadro afetado pela falha injetada ${e(r.falhaTipo)}"` : ''}><span class="c-ts">${horaMs(r.ts, true)}</span><span>${e(r.porta)}</span><span>${r.conexao ? `#${r.conexao}` : ''}</span>
+          <span class="${dcls}">${r.dir.toUpperCase()}</span><span class="c-fr">${e(r.texto)}${tag} <span class="c-na">${nota}</span></span>
           <span class="${k === 'ok' ? 'c-ok' : k === 'bad' ? 'c-bad' : 'c-na'}">${r.dir === 'ev' ? '—' : k === 'ok' ? 'válido' : k === 'bad' ? 'inválido' : 'sem KK'}</span></div>`;
       })
       .join('');
@@ -97,10 +161,11 @@ export default {
       })
       .join('');
     const pausado = Boolean(u.pausado);
+    const parado = !pausado && u.seguir === false && app.trafego.length > 0;
     return `<div class="main scr-trafego">
       ${cabecalho('Tráfego', 'Tudo o que entra e sai das portas, quadro a quadro. RX = cliente → simulador.')}
       <div class="cols"><section class="card">
-        <div class="tool"><span class="live${pausado ? ' off' : ''}"><span class="dot${pausado ? ' off' : ' pulse'}"></span>${pausado ? 'Pausado' : 'Ao vivo'}</span>
+        <div class="tool"><span class="live${pausado ? ' off' : ''}"><span class="dot${pausado ? ' off' : ' pulse'}"></span>${pausado ? 'Pausado' : 'Ao vivo'}</span>${parado ? '<button class="btn sm" data-act="fim" title="Voltar a seguir as linhas novas"><span class="ms s14">south</span>Ir para o fim</button>' : ''}
           <span class="lbl" style="margin-left:8px">Verbo</span>${VERBOS.map((v) => `<span class="vchip${u.verbo === v ? ' on' : ''}" data-act="verbo" data-v="${e(v)}">${e(v)}</span>`).join('')}
           <div style="margin-left:auto">${seg([['todas', 'Todas'], ...portas.map((p) => [String(p), String(p)])], u.porta, 'porta')}</div></div>
         <div class="tool"><div class="field" style="flex:1"><span class="ms s16">search</span><input data-campo="busca" value="${e(u.busca)}" placeholder="Buscar no quadro (ex.: 04, TG99)"></div>
@@ -124,7 +189,23 @@ export default {
         ${ativas || '<div class="card-b small faint" style="padding-top:4px">Nenhuma falha ativa.</div>'}
       </section></div></div>`;
   },
+  /** Scroll inside the console: following stops when the user leaves the bottom, resumes at the bottom. */
+  aoRolar(app, el) {
+    if (!el?.classList?.contains('con-body')) return;
+    const u = ui(app);
+    u.seguir = noFundo(el);
+    if (!u.seguir) u.topo = undefined;
+  },
+  /** After each render: while live and following, keep the console at the last line. */
+  aposRender(app, raiz) {
+    seguirFim(ui(app), raiz?.querySelector?.('.scr-trafego .con-body'));
+  },
   acoes: {
+    fim(app) {
+      const u = ui(app);
+      u.seguir = true;
+      u.topo = undefined;
+    },
     verbo(app, d) {
       ui(app).verbo = d.v;
     },
@@ -138,12 +219,17 @@ export default {
     pausar(app) {
       const u = ui(app);
       u.pausado = u.pausado ? null : [...app.trafego];
+      if (!u.pausado) {
+        u.seguir = true;
+        u.topo = undefined;
+      }
     },
     limpar(app) {
       app.trafego.length = 0;
       const u = ui(app);
       if (u.pausado) u.pausado = [];
       u.sel = null;
+      u.topo = undefined;
     },
     exportar(app) {
       const ls = linhas(app);

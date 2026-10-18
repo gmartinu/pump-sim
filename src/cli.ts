@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -17,7 +17,11 @@ import { lerAlvo } from './net/cliente-tcp.js';
 import { IDS_PERFIS, type PerfilId, obterPerfil } from './profiles/index.js';
 import { lerGravacao } from './recorder/formato.js';
 import { ServidorReplay, replayCliente } from './recorder/replay.js';
-import { PORTA_CONTROLE_PADRAO, abrirControleComFallback, consoleUtf8, deveEsperarEnter, mensagemErroFatal, mensagemFalhaControle } from './ui/inicio.js';
+import { PORTA_CONTROLE_PADRAO, abrirControleComFallback, mensagemErroFatal, mensagemFalhaControle, pilhaSemCaminhos, textoDialogoErro } from './ui/inicio.js';
+import { type Instalacao, argsErroHost, argsHost, caiParaNavegador, dirHost, encerraComJanela, instalarHost, lerAssetsHost, usarHost } from './ui/janela.js';
+import { type UltimaConfig, arquivoUltimaConfig, lerUltimaConfig, passosUltimaConfig } from './ui/lembrar.js';
+import { LogArquivo, NOME_LOG, dirLogs, espelhar } from './ui/log.js';
+import { VERSAO } from './versao.js';
 import { comoAbrir } from './ui/navegador.js';
 
 const AJUDA = `pump-sim — simulador de concentrador Companytec
@@ -25,7 +29,7 @@ const AJUDA = `pump-sim — simulador de concentrador Companytec
 Uso:
   pump-sim [--profile <id>] [--ports 2001,1771] [--control 7070] [--record <arquivo.jsonl>]
            [--host <ip>] [--sem-config-padrao] [--relogio-manual] [--listar-perfis]
-           [--ui] [--sem-abrir] [--lembrar] [--gravacoes <pasta>]
+           [--ui] [--sem-abrir] [--lembrar] [--gravacoes <pasta>] [--sem-mcp-http]
   pump-sim mcp --control http://127.0.0.1:7070
   pump-sim replay servidor <arquivo.jsonl> [--velocidade 1] [--mapa 2001=3001,...] [--enquadramento fluxo|leituraUnica]
   pump-sim replay cliente <arquivo.jsonl> [--alvo host:porta] [--velocidade 1]
@@ -63,8 +67,11 @@ Uso:
   --sem-abrir          com --ui, só imprime a URL
   --lembrar            parte do último perfil/porta/equipamento salvo e salva as mudanças
   --gravacoes          pasta das gravações da UI (padrão: ./gravacoes)
+  --sem-mcp-http       sobe a API de controle com o MCP por HTTP (<controle>/mcp) desligado; liga pela UI
 
-  Executável do Windows (SEA) sem argumentos = --ui --lembrar; num erro fatal, espera Enter para fechar.
+  Executável do Windows (SEA): é o app de duplo clique (sem argumentos = --ui --lembrar), sem console.
+  A saída vai para %LOCALAPPDATA%\\pump-sim\\logs\\pump-sim.log (UI: Gravação & agentes > Ver logs); um
+  erro fatal abre uma caixa de diálogo; fechar a janela encerra o simulador. No terminal, use npx pump-sim.
 `;
 
 interface Opcoes {
@@ -75,7 +82,7 @@ interface Opcoes {
 function argumentos(argv: string[]): Opcoes {
   const pos: string[] = [];
   const flags = new Map<string, string[]>();
-  const booleanas = new Set(['--sem-config-padrao', '--listar-perfis', '--relogio-manual', '--interativo', '--listar', '--help', '-h', '--ui', '--sem-abrir', '--lembrar', '--drenar-antes', '--substituir']);
+  const booleanas = new Set(['--sem-config-padrao', '--listar-perfis', '--relogio-manual', '--interativo', '--listar', '--help', '-h', '--ui', '--sem-abrir', '--sem-mcp-http', '--lembrar', '--drenar-antes', '--substituir']);
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]!;
     if (a.startsWith('-')) {
@@ -100,30 +107,15 @@ const log = (s: string) => process.stderr.write(s + '\n');
 
 // ───────────────────────── last configuration (--lembrar) ─────────────────────────
 
-/** What `--lembrar` keeps between runs: profile, ports and the equipment panel. */
-interface UltimaConfig {
-  perfil?: string;
-  portas?: number[];
-  dips?: boolean[];
-  modelo?: string;
-  automacao?: boolean;
-  redeAC?: boolean;
-  bateriaVolts?: number;
-  tickVazaoMs?: number;
+function arquivoConfig(): string {
+  return arquivoUltimaConfig(process.platform, process.env, os.homedir());
 }
 
-function arquivoUltimaConfig(): string {
-  const base = process.platform === 'win32' ? (process.env.APPDATA ?? path.join(os.homedir(), 'AppData', 'Roaming')) : (process.env.XDG_CONFIG_HOME ?? path.join(os.homedir(), '.config'));
-  return path.join(base, 'pump-sim', 'ultima-config.json');
-}
-
-function lerUltimaConfig(): UltimaConfig {
-  try {
-    const v = JSON.parse(fs.readFileSync(arquivoUltimaConfig(), 'utf8')) as unknown;
-    return v && typeof v === 'object' ? (v as UltimaConfig) : {};
-  } catch {
-    return {};
-  }
+/** The saved configuration, validated key by key (DECISIONS §35); one log line for what was dropped. */
+function lerConfigSalva(): UltimaConfig {
+  const r = lerUltimaConfig(arquivoConfig(), IDS_PERFIS);
+  if (r.aviso) log(r.aviso);
+  return r.config;
 }
 
 async function capturarConfig(hub: Hub): Promise<UltimaConfig> {
@@ -139,14 +131,7 @@ async function capturarConfig(hub: Hub): Promise<UltimaConfig> {
 
 /** Re-applies the saved equipment panel through the control commands (the same ones the UI uses). */
 async function aplicarConfig(hub: Hub, c: UltimaConfig): Promise<void> {
-  const passos: [string, Record<string, unknown>][] = [];
-  c.dips?.forEach((on, i) => passos.push(['set_dip', { n: i + 1, on }]));
-  if (c.modelo) passos.push(['set_modelo', { modelo: c.modelo }]);
-  if (c.automacao !== undefined) passos.push(['set_automacao', { on: c.automacao }]);
-  if (c.redeAC !== undefined) passos.push(['set_rede_ac', { ligada: c.redeAC }]);
-  if (c.bateriaVolts !== undefined) passos.push(['set_bateria', { volts: c.bateriaVolts }]);
-  if (c.tickVazaoMs !== undefined) passos.push(['set_velocidade', { velocidade: c.tickVazaoMs }]);
-  for (const [nome, args] of passos) {
+  for (const [nome, args] of passosUltimaConfig(c)) {
     try {
       await executarComando(hub, nome, args);
     } catch (e) {
@@ -162,8 +147,8 @@ function vigiarConfig(hub: Hub): () => Promise<void> {
     try {
       const txt = JSON.stringify(await capturarConfig(hub), null, 2);
       if (txt === ultimo) return;
-      fs.mkdirSync(path.dirname(arquivoUltimaConfig()), { recursive: true });
-      fs.writeFileSync(arquivoUltimaConfig(), txt);
+      fs.mkdirSync(path.dirname(arquivoConfig()), { recursive: true });
+      fs.writeFileSync(arquivoConfig(), txt);
       ultimo = txt;
     } catch {
       // A failed save is retried on the next round.
@@ -177,12 +162,61 @@ function vigiarConfig(hub: Hub): () => Promise<void> {
   };
 }
 
-/** Opens the UI in an app window when it can (Edge, then Chrome, then the default browser). */
-function abrirJanela(url: string): void {
+/** Opens the UI in an app window of a browser (Edge, then Chrome, then the default browser). */
+function abrirNavegador(url: string): void {
   const { cmd, args, verbatim } = comoAbrir(url, process.platform, process.env, (p) => fs.existsSync(p));
   const p = spawn(cmd, args, { detached: true, stdio: 'ignore', windowsHide: true, windowsVerbatimArguments: Boolean(verbatim) });
   p.on('error', () => log(`[pump-sim] não consegui abrir o navegador; abra ${url}`));
   p.unref();
+}
+
+/** Writes the embedded window host to disk (sha-checked); null outside the Windows executable or without the host. */
+function prepararHost(): Instalacao | null {
+  const assets = process.platform === 'win32' && executavel ? lerAssetsHost() : null;
+  if (!usarHost({ plataforma: process.platform, executavel, temHost: assets !== null }) || !assets) return null;
+  return instalarHost({ bytes: assets.bytes, shaEsperado: assets.sha, dir: dirHost(process.env, os.homedir()) });
+}
+
+/**
+ * Opens the UI window. The Windows executable runs its embedded frameless window host (DECISIONS
+ * §32); without it, or when it reports no WebView2 runtime, the browser app window takes over.
+ * The executable has no console (§34), so `aoFechar` (stop the simulator) runs when the host window
+ * ends; with the browser fallback the process keeps running until "Encerrar pump-sim" in the UI.
+ * Returns what closes the host window when the process ends first.
+ */
+function abrirJanela(url: string, aoFechar: () => void): () => void {
+  const inst = prepararHost();
+  if (!inst) {
+    abrirNavegador(url);
+    return () => undefined;
+  }
+  if (!inst.ok) {
+    log(`[pump-sim] ${inst.motivo}; abrindo no navegador`);
+    abrirNavegador(url);
+    return () => undefined;
+  }
+  let caiu = false;
+  const cair = (r: { erroSpawn: boolean; codigo: number | null }) => {
+    if (!caiu && encerraComJanela(r)) {
+      caiu = true;
+      log(`[pump-sim] janela fechada (código ${r.codigo ?? '—'}); encerrando o simulador`);
+      aoFechar();
+      return;
+    }
+    if (caiu || !caiParaNavegador(r)) return;
+    caiu = true;
+    log(r.erroSpawn ? '[pump-sim] não consegui abrir a janela; abrindo no navegador' : '[pump-sim] WebView2 Runtime não encontrado; abrindo no navegador');
+    abrirNavegador(url);
+  };
+  const p = spawn(inst.caminho, argsHost(url), { detached: true, stdio: 'ignore', windowsHide: false });
+  p.on('error', () => cair({ erroSpawn: true, codigo: null }));
+  p.on('exit', (codigo) => cair({ erroSpawn: false, codigo }));
+  p.unref();
+  // "Encerrar pump-sim" in the UI (DECISIONS §35): the process ends first, so the window goes with it.
+  return () => {
+    caiu = true;
+    if (p.exitCode === null && p.signalCode === null) p.kill();
+  };
 }
 
 async function rodarSimulador(o: Opcoes): Promise<void> {
@@ -191,7 +225,7 @@ async function rodarSimulador(o: Opcoes): Promise<void> {
     return;
   }
   const lembrar = tem(o, '--lembrar');
-  const ultima = lembrar ? lerUltimaConfig() : {};
+  const ultima = lembrar ? lerConfigSalva() : {};
   const salvo = ultima.perfil && (IDS_PERFIS as readonly string[]).includes(ultima.perfil) ? (ultima.perfil as PerfilId) : undefined;
   const perfilId = (um(o, '--profile', '--perfil') ?? salvo ?? 'simulador-2.7.2') as PerfilId;
   if (!IDS_PERFIS.includes(perfilId)) throw new Error(`perfil desconhecido: ${perfilId}`);
@@ -214,19 +248,23 @@ async function rodarSimulador(o: Opcoes): Promise<void> {
   const ctlExplicito = um(o, '--control', '--controle');
   const ctl = ctlExplicito ?? (ui ? String(PORTA_CONTROLE_PADRAO) : undefined);
   let fecharCtl: (() => Promise<void>) | null = null;
+  let urlJanela: string | null = null;
   if (ctl) {
     const porta = Number(ctl);
     if (!Number.isInteger(porta) || porta < 0 || porta > 65535) throw new Error(`--control: porta inválida (${ctl})`);
     const hostCtl = um(o, '--control-host') ?? '127.0.0.1';
     // Explicit --control: one attempt. --ui default: first free port in 7070..7089 (DECISIONS §31).
-    const r = await abrirControleComFallback((p) => abrirServidorControle(hub, p, hostCtl), { porta, explicita: ctlExplicito !== undefined });
+    const mcpHttp = !tem(o, '--sem-mcp-http');
+    const r = await abrirControleComFallback((p) => abrirServidorControle(hub, p, hostCtl, { mcpHttp, arquivoLog: logArquivo?.arquivo ?? null, aoEncerrar: () => void sair('encerrado pela interface') }), { porta, explicita: ctlExplicito !== undefined });
     if (r.ok) {
       const s = r.servidor;
       fecharCtl = s.fechar;
       if (r.porta !== porta) log(`[pump-sim] porta ${porta} ocupada; usando ${r.porta}`);
       log(`[pump-sim] API de controle em ${s.url} (WS ${s.url.replace('http', 'ws')}/ws)`);
       log(`[pump-sim] UI em ${s.url}/`);
-      if (ui && !tem(o, '--sem-abrir')) abrirJanela(`${s.url}/`);
+      const m = s.mcp.ativo ? `MCP (HTTP) em ${s.url}/mcp` : 'MCP (HTTP) desligado (--sem-mcp-http); liga pela UI';
+      log(`[pump-sim] ${m}`);
+      if (ui && !tem(o, '--sem-abrir')) urlJanela = `${s.url}/`;
     } else {
       // The simulator itself keeps serving its TCP ports; only the API/UI is missing.
       log(mensagemFalhaControle(r, ctlExplicito !== undefined));
@@ -234,15 +272,23 @@ async function rodarSimulador(o: Opcoes): Promise<void> {
   }
   const pararVigia = lembrar ? vigiarConfig(hub) : null;
   const t = manual ? null : setInterval(() => hub.tick(), 50);
-  const sair = async () => {
+  let fecharJanela: () => void = () => undefined;
+  let saindo = false;
+  // Saves the configuration, closes the control API and the TCP ports, then exits (once).
+  async function sair(motivo?: string): Promise<void> {
+    if (saindo) return;
+    saindo = true;
+    if (motivo) log(`[pump-sim] ${motivo}; fechando as portas`);
     if (t) clearInterval(t);
     await pararVigia?.();
     await fecharCtl?.();
     await hub.fechar();
+    fecharJanela();
     process.exit(0);
-  };
+  }
   process.on('SIGINT', () => void sair());
   process.on('SIGTERM', () => void sair());
+  if (urlJanela) fecharJanela = abrirJanela(urlJanela, () => void sair());
 }
 
 async function rodarReplay(o: Opcoes): Promise<void> {
@@ -372,6 +418,7 @@ async function main(argv: string[]): Promise<void> {
   const o = argumentos(argv.length === 0 && executavel ? ['--ui', '--lembrar'] : argv);
   if (tem(o, '--help', '-h')) {
     process.stdout.write(AJUDA);
+    if (executavel) mostrarAjuda();
     return;
   }
   switch (o.pos[0]) {
@@ -396,24 +443,65 @@ async function main(argv: string[]): Promise<void> {
   }
 }
 
-/** Double click on the executable: keep the console open on a fatal error so it can be read. */
-async function esperarEnter(): Promise<void> {
-  const rl = readline.createInterface({ input: process.stdin, output: process.stderr });
+/**
+ * `--help` in the GUI executable (no console, DECISIONS §34): the text also goes to `ajuda.txt` next
+ * to the log, opened in Notepad.
+ */
+function mostrarAjuda(): void {
+  if (process.platform !== 'win32') return;
   try {
-    await rl.question('Pressione Enter para fechar');
-  } finally {
-    rl.close();
+    const arq = path.join(dirLogs(process.env, os.homedir()), 'ajuda.txt');
+    fs.mkdirSync(path.dirname(arq), { recursive: true });
+    fs.writeFileSync(arq, AJUDA.replace(/\n/g, '\r\n'));
+    const p = spawn('notepad.exe', [arq], { detached: true, stdio: 'ignore' });
+    p.on('error', () => undefined);
+    p.unref();
+  } catch {
+    // the help is in the log anyway
   }
+}
+
+/**
+ * A fatal error in the GUI executable: a native dialog through the window host (`-erro`,
+ * MessageBoxW), waited for before exiting. Without the host the message stays in the log only.
+ */
+function dialogoErro(mensagem: string): void {
+  const inst = prepararHost();
+  if (!inst?.ok) return;
+  try {
+    spawnSync(inst.caminho, argsErroHost(textoDialogoErro(mensagem, logArquivo?.arquivo ?? null)), { stdio: 'ignore', windowsHide: false });
+  } catch {
+    // no dialog: the log has it
+  }
+}
+
+let fatalVisto = false;
+function fatal(e: unknown): void {
+  if (fatalVisto) return;
+  fatalVisto = true;
+  const m = mensagemErroFatal(e);
+  process.stderr.write(`${m}\n`);
+  if (executavel && process.platform === 'win32') {
+    if (e instanceof Error && e.stack) logArquivo?.escrever(`${pilhaSemCaminhos(e.stack)}\n`);
+    dialogoErro(m);
+  }
+  logArquivo?.fechar();
+  process.exit(1);
 }
 
 const argvCli = process.argv.slice(2);
 const executavel = ehExecutavel();
-// The Windows executable prints Portuguese text to a console that defaults to cp850 (DECISIONS §31).
-if (executavel) consoleUtf8();
-main(argvCli).catch(async (e: unknown) => {
-  process.stderr.write(`${mensagemErroFatal(e)}\n`);
-  if (deveEsperarEnter({ executavel, semArgumentos: argvCli.length === 0, tty: Boolean(process.stdin.isTTY && process.stderr.isTTY) })) {
-    await esperarEnter().catch(() => undefined);
-  }
-  process.exit(1);
-});
+/**
+ * The Windows executable is a GUI-subsystem program (no console window, DECISIONS §34): stdout and
+ * stderr are mirrored into %LOCALAPPDATA%\pump-sim\logs\pump-sim.log. Under `mcp` stdout is the
+ * JSON-RPC stream and stays out of the log.
+ */
+const logArquivo = executavel && process.platform === 'win32' ? new LogArquivo({ arquivo: path.join(dirLogs(process.env, os.homedir()), NOME_LOG), agora: () => new Date() }) : null;
+if (logArquivo) {
+  espelhar(process.stderr, logArquivo);
+  if (argvCli[0] !== 'mcp') espelhar(process.stdout, logArquivo);
+  logArquivo.escrever(`[pump-sim] ${VERSAO} iniciado: pid ${process.pid}, argumentos ${JSON.stringify(argvCli)}\n`);
+  process.on('uncaughtException', fatal);
+  process.on('exit', () => logArquivo.fechar());
+}
+main(argvCli).catch(fatal);

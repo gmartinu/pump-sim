@@ -1,9 +1,12 @@
 // Minimal DOM morph: re-render the screen as HTML and patch the live tree in place, so a 300 ms
-// refresh keeps focus, caret, scroll and the value of what is being typed.
+// refresh keeps focus, caret, scroll and the value of what is being typed. Every `title` becomes
+// `data-dica` on the way in: the page draws its own tooltips, kept inside the window (dica.js).
+import { trocarTitulos } from './dica.js';
 
 export function morph(alvo, html) {
   const t = document.createElement('template');
   t.innerHTML = html;
+  trocarTitulos(t.content);
   filhos(alvo, t.content);
 }
 

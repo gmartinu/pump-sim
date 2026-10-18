@@ -2,6 +2,8 @@
 // through the control API (Api.chamar); the screen modules only render state and map clicks to commands.
 import { Api } from './api.js';
 import { e, horaMs, rtcCurto } from './fmt.js';
+import { instalarDicas } from './dica.js';
+import { arrastavel, botoesJanela, criarJanela } from './janela.js';
 import { morph } from './morph.js';
 import agentes from './telas/agentes.js';
 import comandos from './telas/comandos.js';
@@ -25,6 +27,10 @@ const ABAS = [
   ['agentes', 'smart_toy', 'Gravação & agentes'],
 ];
 const TELAS = { pista, comandos, comunicacao, precos, config, trafego, identfid, diff, agentes };
+// Window host bridge (DECISIONS §32); inert until iniciar() finds window.chrome.webview.
+let janela = criarJanela(null);
+// Page tooltips (dica.js); inert until iniciar().
+let dicas = { atualizar() {} };
 const MAX_TRAFEGO = 3000;
 
 const guardado = (k) => {
@@ -57,6 +63,8 @@ const app = {
   toast: null,
   modal: null,
   menu: null,
+  // Set once "Encerrar pump-sim" went through: the process is gone, the page only says so.
+  encerrado: false,
   // ?tema=claro|escuro forces the theme for this page load (screenshots, demos).
   tema: new URLSearchParams(location.search).get('tema') ?? guardado('pump-sim.tema'),
 
@@ -96,7 +104,7 @@ api.ouvir((msg) => {
     else pushTrafego({ ...d, dir: 'ev', texto: d.dir === 'abre' ? 'conexão aberta' : 'conexão fechada' });
   } else if (msg.tipo === 'falha') {
     const d = msg.dados;
-    pushTrafego({ ts: d.ts, porta: d.porta, conexao: null, dir: 'ev', falha: true, texto: `falha injetada: ${d.regra.tipo}${d.regra.param?.ms ? ` ${d.regra.param.ms} ms` : ''} (${d.regra.verbo === '*' ? 'todos' : d.regra.verbo}) em ${d.quadro}` });
+    pushTrafego({ ts: d.ts, porta: d.porta, conexao: null, dir: 'ev', falha: true, falhaTipo: d.regra.tipo, quadroFalha: d.quadro, texto: `falha injetada: ${d.regra.tipo}${d.regra.param?.ms ? ` ${d.regra.param.ms} ms` : ''} (${d.regra.verbo === '*' ? 'todos' : d.regra.verbo}) em ${d.quadro}` });
   } else if (msg.tipo === 'log' && (msg.dados.dir === 'ERRO' || msg.dados.dir === 'INFO')) {
     const d = msg.dados;
     const porta = Number(String(d.porta).replace(/^tcp:/, '')) || d.porta;
@@ -163,9 +171,15 @@ async function ciclo() {
 
 // ───────────────────────── rendering ─────────────────────────
 
+/**
+ * Dark unless the viewer picked light with the toggle (remembered) or `?tema=claro` (DECISIONS §33 U2).
+ * The class also goes on <html>, so the page's own scrollbar gets the theme tokens.
+ */
 function aplicarTema() {
-  const escuro = app.tema ? app.tema === 'escuro' : matchMedia('(prefers-color-scheme: dark)').matches;
-  document.body.className = escuro ? 'th-dark' : 'th-light';
+  const escuro = app.tema !== 'claro';
+  const cls = escuro ? 'th-dark' : 'th-light';
+  document.body.className = cls;
+  if (document.documentElement) document.documentElement.className = cls;
   return escuro;
 }
 
@@ -176,26 +190,41 @@ function topo() {
   const erro = est?.erroPorta;
   const conex = est?.conexoes.length ?? 0;
   const apiOk = api.estado === 'ok';
+  // MCP dot: on when the HTTP endpoint has a client, or any MCP call (HTTP or stdio) came in the last 2 min.
   const mcp = app.servidor?.mcp;
-  const mcpOk = Boolean(mcp && app.servidor.agora - mcp.ultima < 120000);
+  const mcpHttp = app.servidor?.mcpHttp;
+  const mcpOk = (mcpHttp?.ativo ?? true) && Boolean((mcpHttp?.sessoes?.length ?? 0) > 0 || (mcp && app.servidor.agora - mcp.ultima < 120000));
   const portaApi = location.port || '80';
   const escuro = aplicarTema();
   const portasTxt = portas.length ? portas.join(' · ') : erro ? String(erro.porta) : '—';
-  return `<div class="tbw"><div class="tb">
+  const jn = janela.estado;
+  janela.tema(escuro, document);
+  // The pills collapse first (dica: .tb-right wraps its overflow out of sight, last in the markup
+  // first); the theme/menu buttons and the window controls never shrink (DECISIONS §35).
+  const menu = app.menu === 'topo' ? `<div class="menu" role="menu"><button type="button" role="menuitem" data-act="g:encerrar"><span class="ms s16">power_settings_new</span>Encerrar pump-sim</button></div>` : '';
+  return `<div class="tbw${jn.ativa ? ` em-janela${jn.regiao ? '' : ' sem-regiao'}` : ''}"><div class="tb">
     <div class="brand"><img class="brand-mark" src="/ui/icone.svg" alt="" width="18" height="18">pump-sim</div>
-    <div class="pill clk" data-act="g:ir" data-tela="config" title="Trocar de perfil"><span class="ms s16 faint">memory</span><span class="mono">${e(perfil)}</span><span class="ms s16 faint">expand_more</span></div>
+    <div class="pill clk tb-perfil" data-act="g:ir" data-tela="config" title="Trocar de perfil"><span class="ms s16 faint">memory</span><span class="mono ell">${e(perfil)}</span><span class="ms s16 faint">expand_more</span></div>
     <div class="tb-right">
+      <div class="pill clk" data-act="g:ir" data-tela="agentes"><span class="dot${apiOk ? '' : ' err'}"></span><span class="k">API</span><span class="mono">:${e(portaApi)}</span><span class="dot${mcpOk ? '' : ' off'}"></span><span class="k">MCP</span></div>
       <div class="pill"><span class="dot${erro || !portas.length ? ' err' : ''}"></span><span class="k">Portas</span><span class="mono">${e(portasTxt)}</span>${erro ? '<span class="small">ocupada</span>' : ''}</div>
       <div class="pill"><span class="ms s16 faint">cable</span><span class="mono">${conex}</span>${conex === 1 ? 'conexão' : 'conexões'}</div>
       <div class="pill" title="Relógio do concentrador (&amp;R)"><span class="ms s16 faint">schedule</span><span class="mono">${rtcCurto(est?.relogio.rtc)}</span></div>
-      <div class="pill clk" data-act="g:ir" data-tela="agentes"><span class="dot${apiOk ? '' : ' err'}"></span><span class="k">API</span><span class="mono">:${e(portaApi)}</span><span class="dot${mcpOk ? '' : ' off'}"></span><span class="k">MCP</span></div>
+    </div>
+    <div class="tb-fixos rel">
       <button class="btn ghost sm" data-act="g:tema" title="Tema claro/escuro"><span class="ms s16">${escuro ? 'light_mode' : 'dark_mode'}</span></button>
-    </div></div>
+      ${app.servidor?.encerrar ? `<button class="btn ghost sm${app.menu === 'topo' ? ' on' : ''}" data-act="g:menu" data-menu="topo" title="Mais opções" aria-haspopup="menu" aria-expanded="${app.menu === 'topo'}"><span class="ms s16">more_vert</span></button>${menu}` : ''}
+    </div>${botoesJanela(jn)}</div>
     <nav class="tabs">${ABAS.map(([id, ic, rot]) => `<div class="tab${id === app.tela ? ' on' : ''}" data-act="g:ir" data-tela="${id}"><span class="ms s16">${ic}</span>${rot}</div>`).join('')}</nav></div>`;
 }
 
 function camadas() {
   let h = '';
+  if (app.encerrado) {
+    return `<div class="offline"><section class="card"><div class="card-h"><span class="dot off"></span><span class="h2">pump-sim encerrado</span></div>
+      <div class="empty"><span class="ms">power_settings_new</span><b style="color:var(--ink)">O pump-sim foi encerrado</b>
+      <span class="small">As portas do concentrador e a API de controle foram fechadas e o processo terminou. Pode fechar esta ${janela.estado.ativa ? 'janela' : 'aba'}. Para usar de novo, abra o pump-sim outra vez.</span></div></section></div>`;
+  }
   if (app.modal) {
     const m = app.modal;
     h += `<div class="scrim" data-act="g:fechar-modal" data-fundo="1"><div class="modal" role="dialog" aria-label="${e(m.titulo)}">
@@ -229,6 +258,12 @@ function render() {
     console.error(err);
   }
   morph(raiz, topo() + corpo + camadas());
+  dicas.atualizar();
+  try {
+    tela.aposRender?.(app, raiz);
+  } catch (err) {
+    console.error(err);
+  }
 }
 
 // ───────────────────────── event delegation ─────────────────────────
@@ -258,6 +293,24 @@ const GLOBAIS = {
     } catch (err) {
       app.aviso(err.message, 'err');
     }
+  },
+  janela(_app, d) {
+    janela.acao(d.acao);
+  },
+  encerrar() {
+    app.menu = null;
+    app.abrirModal({
+      titulo: 'Encerrar pump-sim',
+      rotulo: 'Encerrar',
+      perigo: true,
+      corpo: () =>
+        `<span class="small">Fecha as portas do concentrador${app.estado?.conexoes.length ? ` (${app.estado.conexoes.length === 1 ? 'há 1 conexão aberta' : `há ${app.estado.conexoes.length} conexões abertas`})` : ''}, a API de controle e o MCP, e termina o processo.</span>`,
+      async confirmar() {
+        await api.post('/api/encerrar', {});
+        app.encerrado = true;
+        api.parar();
+      },
+    });
   },
   'fechar-toast'() {
     app.toast = null;
@@ -294,6 +347,15 @@ function campo(el) {
 
 function iniciar() {
   raiz = document.getElementById('app');
+  janela = criarJanela(window.chrome?.webview, () => render());
+  dicas = instalarDicas(raiz, document);
+  // Without app-region support in the runtime, the bar drags the window through the host.
+  raiz.addEventListener('mousedown', (ev) => {
+    if (ev.button === 0 && ev.detail === 1 && janela.estado.ativa && !janela.estado.regiao && arrastavel(ev.target)) janela.acao('arrastar');
+  });
+  raiz.addEventListener('dblclick', (ev) => {
+    if (janela.estado.ativa && !janela.estado.regiao && arrastavel(ev.target)) janela.acao('maximizar');
+  });
   raiz.addEventListener('click', (ev) => {
     const el = ev.target.closest('[data-act]');
     if (!el || !el.closest('.menu')) {
@@ -304,6 +366,14 @@ function iniciar() {
     }
     if (el) void despachar(el, ev);
   });
+  // Scroll does not bubble: listen in the capture phase and hand it to the screen (console follow).
+  raiz.addEventListener(
+    'scroll',
+    (ev) => {
+      TELAS[app.tela].aoRolar?.(app, ev.target);
+    },
+    true,
+  );
   raiz.addEventListener('input', (ev) => {
     if (ev.target.dataset?.campo && ev.target.tagName !== 'SELECT') campo(ev.target);
   });
@@ -329,7 +399,6 @@ function iniciar() {
     render();
   };
   window.addEventListener('hashchange', rota);
-  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => render());
   api.aoMudar = () => {
     forcarAtualizacao();
     render();

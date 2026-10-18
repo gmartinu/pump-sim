@@ -1,0 +1,12 @@
+{
+  "comment": "Page -> host web messages (ui/js/janela.js builds them, protocol.go parses them). Both test suites read this file.",
+  "mensagens": [
+    { "envio": { "tipo": "janela", "acao": "pronto" }, "acao": "pronto" },
+    { "envio": { "tipo": "janela", "acao": "minimizar" }, "acao": "minimizar" },
+    { "envio": { "tipo": "janela", "acao": "maximizar" }, "acao": "maximizar" },
+    { "envio": { "tipo": "janela", "acao": "fechar" }, "acao": "fechar" },
+    { "envio": { "tipo": "janela", "acao": "arrastar" }, "acao": "arrastar" },
+    { "envio": { "tipo": "janela", "acao": "cor", "cor": "#1a2b3c", "escuro": true }, "acao": "cor", "corRef": 3943194, "escuro": true }
+  ],
+  "estado": { "maximizada": true, "regiao": false, "json": "{\"tipo\":\"janela\",\"maximizada\":true,\"regiao\":false}" }
+}

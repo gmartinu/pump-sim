@@ -6,16 +6,22 @@
  *
  * Expects `npm run build` (tsc → dist/) to have run. Steps:
  *   1. esbuild dist/cli.js → build/sea/pump-sim.cjs (one CJS file, node22).
- *   2. build/sea/sea-config.json: the bundle as `main`, every file under ui/ as asset `ui/<path>`,
- *      useCodeCache/useSnapshot false (a blob with code cache only runs on the platform that built it).
- *   3. node --experimental-sea-config → build/sea/sea-prep.blob. The blob format follows the Node
+ *   2. Builds the frameless window host (tools/window-go, DECISIONS §32) with Go for windows/amd64
+ *      into build/sea/pump-sim-janela.exe, plus its sha256.
+ *   3. build/sea/sea-config.json: the bundle as `main`, every file under ui/ as asset `ui/<path>`,
+ *      the host and its sha256 as `janela/pump-sim-janela.exe(.sha256)`, useCodeCache/useSnapshot
+ *      false (a blob with code cache only runs on the platform that built it).
+ *   4. node --experimental-sea-config → build/sea/sea-prep.blob. The blob format follows the Node
  *      version, so this must run on exactly NODE_VERSION.
- *   4. Downloads node-v<NODE_VERSION>-win-x64.zip into the cache folder (default build/sea/node),
+ *   5. Downloads node-v<NODE_VERSION>-win-x64.zip into the cache folder (default build/sea/node),
  *      checks its sha256 against nodejs.org's SHASUMS256.txt and stops on any mismatch.
- *   5. Extracts node.exe, writes it without its signature to the output and injects the blob with
+ *   6. Extracts node.exe, writes it without its signature to the output and injects the blob with
  *      postject.
- *   6. Replaces the icon with tools/icon/pump-sim.ico and the version info with pump-sim's (resedit,
- *      pure JS), then reads the PE back and checks icon, version, blob and fuse.
+ *   7. Replaces the icon with tools/icon/pump-sim.ico and the version info with pump-sim's (resedit,
+ *      pure JS).
+ *   8. Sets the PE Subsystem from console (3) to Windows GUI (2), recomputing the PE checksum when
+ *      one is set (tools/pe.mjs, DECISIONS §34): a double click then opens no console window. Then
+ *      reads the PE back and checks icon, version, blob, fuse and subsystem.
  *
  * Why the rebrand runs after postject: in node.exe .rsrc is followed by .reloc. Rewriting .rsrc
  * there with a smaller icon set makes resedit move .reloc and leave .rsrc's raw size larger than its
@@ -33,12 +39,14 @@ import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
 import { inject } from 'postject';
 import * as ResEdit from 'resedit';
+import { SUBSISTEMA_GUI, calcularChecksum, definirSubsistema, lerChecksum, lerSubsistema } from './pe.mjs';
 
 const NODE_VERSION = '22.20.0';
 const FUSE = 'NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2';
 const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SAIDA = path.join(RAIZ, 'build', 'sea');
 const ICONE = path.join(RAIZ, 'tools', 'icon', 'pump-sim.ico');
+const DIR_JANELA = path.join(RAIZ, 'tools', 'window-go');
 const LANG_EN_US = 1033;
 const CODEPAGE_UTF16 = 1200;
 
@@ -128,7 +136,7 @@ function marcar(pe, versao) {
   return Buffer.from(exe.generate());
 }
 
-/** Reads the finished PE back: one icon group with the .ico's sizes, the version strings, the blob and the fuse. */
+/** Reads the finished PE back: one icon group with the .ico's sizes, the version strings, the blob, the fuse and the GUI subsystem. */
 function conferir(arq, tamanhoBlob, versao) {
   const b = fs.readFileSync(arq);
   const res = ResEdit.NtExecutableResource.from(ResEdit.NtExecutable.from(b, { ignoreCert: true }));
@@ -143,6 +151,34 @@ function conferir(arq, tamanhoBlob, versao) {
   const sea = res.entries.find((e) => e.type === 10 && e.id === 'NODE_SEA_BLOB');
   if (!sea || sea.bin.byteLength !== tamanhoBlob) falhar('NODE_SEA_BLOB resource missing or resized');
   if (!b.includes(Buffer.from(`${FUSE}:1`))) falhar('SEA fuse not flipped');
+  const sub = lerSubsistema(b);
+  if (sub !== SUBSISTEMA_GUI) falhar(`PE subsystem is ${sub}, expected ${SUBSISTEMA_GUI} (Windows GUI)`);
+  const soma = lerChecksum(b);
+  if (soma !== 0 && soma !== calcularChecksum(b)) falhar('PE checksum does not match the file');
+  return { subsistema: sub, checksum: soma };
+}
+
+/**
+ * Builds tools/window-go for windows/amd64 (pure Go, CGO off, GUI subsystem so no console flashes)
+ * and writes its sha256 next to it. Both become SEA assets; src/ui/janela.ts checks the sha before
+ * every launch.
+ */
+function construirJanela() {
+  const exe = path.join(SAIDA, 'pump-sim-janela.exe');
+  try {
+    execFileSync('go', ['build', '-trimpath', '-buildvcs=false', '-ldflags=-s -w -H windowsgui', '-o', exe, '.'], {
+      cwd: DIR_JANELA,
+      stdio: 'inherit',
+      env: { ...process.env, GOOS: 'windows', GOARCH: 'amd64', CGO_ENABLED: '0' },
+    });
+  } catch (e) {
+    falhar(`go build of tools/window-go failed (needs Go, version in tools/window-go/go.mod): ${e instanceof Error ? e.message : String(e)}`);
+  }
+  const sha = sha256(exe);
+  const arqSha = `${exe}.sha256`;
+  fs.writeFileSync(arqSha, sha);
+  log(`window host ${path.relative(RAIZ, exe)} (${fs.statSync(exe).size} bytes) sha256 ${sha}`);
+  return { exe, arqSha };
 }
 
 async function baixar(url, destino) {
@@ -183,21 +219,29 @@ async function main() {
   if (fonte.startsWith('#!')) fs.writeFileSync(bundle, fonte.replace(/^#![^\n]*\n/, ''));
   log(`bundle ${path.relative(RAIZ, bundle)} (${fs.statSync(bundle).size} bytes)`);
 
-  // 2. SEA config.
+  // 2. Window host.
+  const janela = construirJanela();
+
+  // 3. SEA config.
   const dirUi = path.join(RAIZ, 'ui');
   const assets = Object.fromEntries(listar(dirUi).map((rel) => [`ui/${rel}`, path.join(dirUi, rel)]));
+  // Keys match ASSET_JANELA / ASSET_JANELA_SHA in src/ui/janela.ts.
+  assets['janela/pump-sim-janela.exe'] = janela.exe;
+  assets['janela/pump-sim-janela.exe.sha256'] = janela.arqSha;
   const blob = path.join(SAIDA, 'sea-prep.blob');
   const config = path.join(SAIDA, 'sea-config.json');
   fs.writeFileSync(
     config,
-    JSON.stringify({ main: bundle, output: blob, disableExperimentalSEAWarning: true, useSnapshot: false, useCodeCache: false, assets }, null, 2),
+    // main is relative (node runs in SAIDA): the blob stores it as the script's filename, which shows
+    // up in every stack trace of the executable; an absolute path would leak the build machine's.
+    JSON.stringify({ main: path.basename(bundle), output: blob, disableExperimentalSEAWarning: true, useSnapshot: false, useCodeCache: false, assets }, null, 2),
   );
-  log(`sea-config: ${Object.keys(assets).length} ui assets`);
+  log(`sea-config: ${Object.keys(assets).length} assets (ui + window host)`);
 
-  // 3. Blob.
-  execFileSync(process.execPath, ['--experimental-sea-config', config], { stdio: 'inherit' });
+  // 4. Blob.
+  execFileSync(process.execPath, ['--experimental-sea-config', config], { stdio: 'inherit', cwd: SAIDA });
 
-  // 4. Official node.exe, checked against SHASUMS256.txt.
+  // 5. Official node.exe, checked against SHASUMS256.txt.
   const nomeZip = `node-v${NODE_VERSION}-win-x64.zip`;
   const base = `https://nodejs.org/dist/v${NODE_VERSION}`;
   const shasums = await (await fetch(`${base}/SHASUMS256.txt`)).text();
@@ -219,16 +263,20 @@ async function main() {
     execFileSync('tar', ['-xf', zip, '-C', cache, `node-v${NODE_VERSION}-win-x64/node.exe`], { stdio: 'inherit' });
   }
 
-  // 5. Unsign, inject.
+  // 6. Unsign, inject.
   fs.writeFileSync(exe, tirarAssinatura(nodeExe));
   const dadosBlob = fs.readFileSync(blob);
   await inject(exe, 'NODE_SEA_BLOB', dadosBlob, { sentinelFuse: FUSE, overwrite: true });
 
-  // 6. Rebrand, then read the result back.
+  // 7. Rebrand, then read the result back.
   const { version } = JSON.parse(fs.readFileSync(path.join(RAIZ, 'package.json'), 'utf8'));
-  fs.writeFileSync(exe, marcar(fs.readFileSync(exe), version));
-  conferir(exe, dadosBlob.length, version);
+  const marcado = marcar(fs.readFileSync(exe), version);
+  // 8. GUI subsystem: no console on a double click; stdout/stderr go to the log file (src/ui/log.ts).
+  const sub = definirSubsistema(marcado, SUBSISTEMA_GUI);
+  fs.writeFileSync(exe, marcado);
+  const lido = conferir(exe, dadosBlob.length, version);
   log(`icon ${path.relative(RAIZ, ICONE)}, version info pump-sim ${version}`);
+  log(`PE subsystem ${sub.antes} -> ${lido.subsistema} (read back), checksum ${lido.checksum ? `0x${lido.checksum.toString(16)}` : 'not set'}`);
   log(`${exe} ${fs.statSync(exe).size} bytes sha256 ${sha256(exe)}`);
 }
 

@@ -1,13 +1,90 @@
 // Gravação & agentes: record raw traffic to JSONL, list/download/replay recordings, and show the
-// control API and MCP status with the recent agent calls (the UI's own calls are not listed).
+// control API and MCP status with the recent agent calls (the UI's own calls are not listed). The MCP
+// card switches the HTTP endpoint `/mcp` on/off and hands out the client configs (DECISIONS §33). In the
+// Windows executable (no console) the "Log do executável" card shows the log file's tail (§34).
 import { diaHoraMs, duracao, e, horaMs, num, tamanho } from '../fmt.js';
-import { cabecalho, seg } from './comum.js';
+import { cabecalho, seg, sw } from './comum.js';
 
 const GRUPOS = ['leitura', 'protocolo', 'controle', 'infra'];
 
 function ui(app) {
-  app.ui.agentes ??= { modo: 'cliente', alvo: '', vel: '1', arquivo: null, rodando: false, resultado: null };
+  app.ui.agentes ??= { modo: 'cliente', alvo: '', vel: '1', arquivo: null, rodando: false, resultado: null, cliente: 'claude-code', comando: false };
   return app.ui.agentes;
+}
+
+const json = (v) => JSON.stringify(v, null, 2);
+
+/** The executable's log card: only when the server reports a log file (`/api/servidor` `log.ativo`). */
+function cartaoLog(app, u) {
+  const lg = app.servidor?.log;
+  if (!lg?.ativo) return '';
+  const v = u.log;
+  const corpo = v
+    ? `<pre class="mono small logtxt" style="margin:0;max-height:320px;overflow:auto;white-space:pre-wrap;word-break:break-all">${e(v.texto || 'log vazio')}</pre>`
+    : '<div class="card-b small faint">A saída do executável (sem console) vai para este arquivo.</div>';
+  const botoes = v
+    ? `<button class="btn sm" data-act="ver-logs"><span class="ms s14">refresh</span>Atualizar</button><button class="btn sm ghost" data-act="ocultar-logs">Ocultar</button>`
+    : '<button class="btn sm" data-act="ver-logs"><span class="ms s14">terminal</span>Ver logs</button>';
+  return `<section class="card"><div class="card-h"><span class="ms s16">terminal</span><span class="h2">Log do executável</span><span class="mono small faint ell" title="${e(lg.arquivo)}">${e(lg.arquivo)}</span><span class="row gap4" style="margin-left:auto">${botoes}</span></div>${corpo}</section>`;
+}
+
+/**
+ * MCP client configs for the HTTP endpoint at `url` (the control API's real port, after a fallback
+ * too). Claude Desktop's config file only starts stdio servers, so it gets the stdio bridge
+ * (`pump-sim mcp`, over the control API at `controle`) through npx.
+ */
+export function configsMcp(url, controle) {
+  return {
+    'claude-code': { rot: 'Claude Code', onde: '.mcp.json na raiz do projeto (ou use o comando abaixo)', texto: json({ mcpServers: { 'pump-sim': { type: 'http', url } } }) },
+    'claude-desktop': {
+      rot: 'Claude Desktop',
+      onde: 'claude_desktop_config.json: o arquivo só aceita servidores stdio, então o npx sobe a ponte pump-sim mcp para esta API (precisa do Node)',
+      texto: json({ mcpServers: { 'pump-sim': { command: 'npx', args: ['-y', 'pump-sim', 'mcp', '--control', controle] } } }),
+    },
+    cursor: { rot: 'Cursor', onde: '~/.cursor/mcp.json (global) ou .cursor/mcp.json (projeto)', texto: json({ mcpServers: { 'pump-sim': { url } } }) },
+    vscode: { rot: 'VS Code', onde: '.vscode/mcp.json do projeto', texto: json({ servers: { 'pump-sim': { type: 'http', url } } }) },
+  };
+}
+
+/** The `claude mcp add` command for the endpoint (shown to copy; the UI runs nothing on the machine). */
+export const comandoClaudeCode = (url) => `claude mcp add --transport http pump-sim ${url}`;
+
+function cartaoMcp(app, u, origem) {
+  const s = app.servidor;
+  const h = s?.mcpHttp;
+  const ativo = h ? h.ativo : true;
+  const sessoes = h?.sessoes ?? [];
+  const url = h?.url ?? `${origem}/mcp`;
+  const controle = url.replace(/\/mcp$/, '');
+  const ultima = s?.mcp;
+  const recente = Boolean(ultima && s.agora - ultima.ultima < 120000);
+  const ok = ativo && (sessoes.length > 0 || recente);
+  const estado = !ativo
+    ? 'HTTP desligado'
+    : sessoes.length
+      ? `${sessoes.length} cliente${sessoes.length === 1 ? '' : 's'} conectado${sessoes.length === 1 ? '' : 's'}`
+      : 'ligado · nenhum cliente conectado';
+  const cfgs = configsMcp(url, controle);
+  const cfg = cfgs[u.cliente] ?? cfgs['claude-code'];
+  const cmd = comandoClaudeCode(url);
+  const linhasSessoes = sessoes
+    .map((x) => `<div class="ses"><span class="mono small fw6 ell" title="sessão ${e(x.id)}">${e(x.cliente || 'cliente sem nome')}${x.versao ? ` <span class="faint">${e(x.versao)}</span>` : ''}</span><span class="small faint">desde ${horaMs(x.desde)}</span><span class="small">${num(x.chamadas, 0)} chamada${x.chamadas === 1 ? '' : 's'}</span><span class="small faint">última ${horaMs(x.ultima)}</span></div>`)
+    .join('');
+  return `<section class="card"><div class="card-h"><span class="dot${ok ? '' : ' off'}"></span><span class="h2">MCP</span><span class="small faint ell">${estado}${ultima ? ` · última chamada ${horaMs(ultima.ultima)}${ultima.cliente ? ` (${e(ultima.cliente)})` : ''}` : ''}</span>
+      <span class="row gap8" style="margin-left:auto"><span class="small muted">HTTP</span>${sw(ativo, 'mcp-ligar', `title="${ativo ? 'Desligar' : 'Ligar'} o MCP por HTTP (${e(url)})"`)}</span></div>
+    <div class="kv"><span class="k">Endereço</span><span class="mono${ativo ? '' : ' faint'}">${e(url)}</span>
+      <span class="k">Transporte</span><span class="small muted">HTTP streamable, no mesmo processo; só loopback, recusa Origin e Host de fora</span>
+      <span class="k">stdio</span><span class="mono small">pump-sim mcp --control ${e(controle)}</span></div>
+    ${linhasSessoes ? `<div class="sessoes">${linhasSessoes}</div>` : ''}
+    <div class="sep"></div>
+    <div class="card-b fx col gap10">
+      <span class="lbl">Configurar um cliente</span>
+      ${seg(Object.entries(cfgs).map(([k, c]) => [k, c.rot]), u.cliente in cfgs ? u.cliente : 'claude-code', 'mcp-cliente')}
+      <span class="small muted">${e(cfg.onde)}</span>
+      <div class="codewrap"><div class="code">${e(cfg.texto)}</div><button class="btn sm" data-act="g:copiar" data-texto="${e(cfg.texto)}"><span class="ms s14">content_copy</span>Copiar config</button></div>
+      <div class="row gap8"><button class="btn sm${u.comando ? ' on' : ''}" data-act="mcp-comando"><span class="ms s14">terminal</span>Adicionar ao Claude Code</button>${ativo ? '' : '<span class="small" style="color:var(--warn)">ligue o MCP por HTTP para o cliente conectar</span>'}</div>
+      ${u.comando ? `<span class="small muted">Rode no terminal, na pasta do projeto (a interface não executa nada na sua máquina):</span><div class="codewrap"><div class="code">${e(cmd)}</div><button class="btn sm" data-act="g:copiar" data-texto="${e(cmd)}"><span class="ms s14">content_copy</span>Copiar</button></div>` : ''}
+    </div>`;
 }
 
 export default {
@@ -54,10 +131,6 @@ export default {
       const nomes = cat.filter((c) => c.grupo === gr).map((c) => c.nome);
       return `<div class="grp"><span class="mono fw6">${gr}</span><span class="small muted ell" title="${e(nomes.join(', '))}">${e(nomes.slice(0, 6).join(', '))}${nomes.length > 6 ? '…' : ''}</span></div>`;
     }).join('');
-    const mcp = s?.mcp;
-    const mcpOk = Boolean(mcp && s.agora - mcp.ultima < 120000);
-    // Same layout as the design (args on one line); still valid JSON to paste.
-    const mcpJson = `{\n  "mcpServers": {\n    "pump-sim": {\n      "command": "pump-sim",\n      "args": ${JSON.stringify(['mcp', '--control', origem]).replace(/","/g, '", "')}\n    }\n  }\n}`;
     const chamadas = (s?.chamadas ?? [])
       .slice(0, 12)
       .map((c) => `<div class="ag"><span class="mono small faint">${horaMs(c.ts)}</span><span class="mono small fw6 ell" title="${e(c.comando)} · ${e(c.origem)}${c.cliente ? ` · ${e(c.cliente)}` : ''}">${e(c.comando)}</span><span class="args">${e(c.args)}</span><span class="${c.ok ? 'res-ok' : 'res-err'}" title="${e(c.resumo)}">${c.ok ? 'ok' : e(c.resumo)}</span></div>`)
@@ -85,12 +158,11 @@ export default {
             <span class="k">Catálogo</span><span class="mono">GET /api/catalogo <span class="faint">· ${cat.length} comandos</span></span>
             <span class="k">Acesso</span><span class="small muted">só loopback, sem autenticação; recusa Origin e Host de fora</span></div>
           <div class="sep"></div>${grupos}</section>
-        <section class="card"><div class="card-h"><span class="dot${mcpOk ? '' : ' off'}"></span><span class="h2">MCP</span><span class="small faint">${mcp ? `${mcpOk ? 'conectado' : 'parado'}${mcp.cliente ? ` · ${e(mcp.cliente)}` : ''} · última chamada ${horaMs(mcp.ultima)}` : 'nenhuma chamada do MCP ainda'}</span></div>
-          <div class="card-b fx col gap10"><span class="small muted">As tools do MCP são o catálogo da API; cada chamada vira um POST /api/comandos/&lt;tool&gt;. Cole no cliente MCP:</span>
-            <div class="codewrap"><div class="code">${e(mcpJson)}</div><button class="btn sm" data-act="g:copiar" data-texto="${e(mcpJson)}"><span class="ms s14">content_copy</span>Copiar</button></div></div>
+        ${cartaoMcp(app, u, origem)}
           <div class="sep"></div>
           <div class="card-h" style="border-bottom:0;padding-bottom:4px"><span class="lbl">Últimas chamadas de agentes</span><span class="small faint">MCP, HTTP e WS; as da própria interface ficam de fora</span></div>
           ${chamadas || '<div class="card-b small faint" style="padding-top:4px">Nenhuma chamada ainda.</div>'}</section>
+        ${cartaoLog(app, u)}
       </div></div></div>`;
   },
   acoes: {
@@ -123,6 +195,34 @@ export default {
       const r = await app.chamar('replay', args);
       u.rodando = false;
       if (r) u.resultado = u.modo === 'servidor' ? { servidor: r } : { cliente: r };
+    },
+    'mcp-cliente'(app, d) {
+      ui(app).cliente = d.v;
+    },
+    'mcp-comando'(app) {
+      const u = ui(app);
+      u.comando = !u.comando;
+    },
+    async 'mcp-ligar'(app) {
+      const ativo = !(app.servidor?.mcpHttp?.ativo ?? true);
+      try {
+        const st = await app.api.post('/api/mcp', { ativo });
+        if (app.servidor) app.servidor.mcpHttp = st;
+        app.aviso(ativo ? `MCP por HTTP ligado em ${st.url}` : 'MCP por HTTP desligado: as sessões abertas foram encerradas', 'info');
+      } catch (err) {
+        app.aviso(`MCP: ${err.message}`, 'err');
+      }
+    },
+    async 'ver-logs'(app) {
+      try {
+        const r = await app.api.get('/api/logs');
+        ui(app).log = { texto: r.texto, tamanho: r.tamanho };
+      } catch (err) {
+        app.aviso(`Log: ${err.message}`, 'err');
+      }
+    },
+    'ocultar-logs'(app) {
+      ui(app).log = null;
     },
     async 'parar-replay'(app) {
       await app.chamar('replay_parar');

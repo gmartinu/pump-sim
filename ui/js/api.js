@@ -1,5 +1,6 @@
 // The UI talks to the simulator only through the control API: commands over the WebSocket
-// (`{id, comando, args, origem: 'ui'}`), live events pushed on the same socket, and two GET routes.
+// (`{id, comando, args, origem: 'ui'}`), live events pushed on the same socket, a few GET routes and
+// the `/api/mcp` switch (POST).
 
 export class Api {
   constructor() {
@@ -9,9 +10,17 @@ export class Api {
     this.seq = 1;
     this.ouvintes = new Set();
     this.aoMudar = () => {};
+    this.parado = false;
+  }
+
+  /** Stops reconnecting (the process was ended from the UI: there is nothing to reconnect to). */
+  parar() {
+    this.parado = true;
+    this.ws?.close();
   }
 
   conectar() {
+    if (this.parado) return;
     const ws = new WebSocket(`ws://${location.host}/ws`);
     this.ws = ws;
     ws.onopen = () => this.mudar('ok');
@@ -35,7 +44,7 @@ export class Api {
       for (const p of this.pend.values()) p.erro(new Error('conexão com a API caiu'));
       this.pend.clear();
       this.mudar('off');
-      setTimeout(() => this.conectar(), 1500);
+      if (!this.parado) setTimeout(() => this.conectar(), 1500);
     };
   }
 
@@ -57,6 +66,14 @@ export class Api {
 
   async get(caminho) {
     const r = await fetch(caminho);
+    const j = await r.json();
+    if (!j.ok) throw new Error(j.erro ?? `HTTP ${r.status}`);
+    return j.resultado;
+  }
+
+  /** JSON POST to a control route (e.g. `/api/mcp`). Rejects with the API's error text. */
+  async post(caminho, corpo) {
+    const r = await fetch(caminho, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(corpo) });
     const j = await r.json();
     if (!j.ok) throw new Error(j.erro ?? `HTTP ${r.status}`);
     return j.resultado;

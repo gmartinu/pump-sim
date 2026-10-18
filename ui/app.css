@@ -6,6 +6,20 @@ button { font: inherit; }
 button:disabled, .btn[disabled] { opacity: .5; cursor: not-allowed; }
 input, select, textarea { font: inherit; color: inherit; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+html.th-light, html.th-dark { background: var(--bg); }
+
+/* Scrollbars (DECISIONS §33 U1): thin, theme tokens, both themes. Chromium/WebView2 and Safari draw the
+   ::-webkit-scrollbar parts; Firefox (no such pseudo-elements) gets the standard properties. Chromium
+   ignores the pseudo-elements once scrollbar-width/scrollbar-color are set, hence the @supports. */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent; }
+::-webkit-scrollbar-thumb { background-color: var(--line-2); border: 3px solid transparent; border-radius: 6px; background-clip: padding-box; min-height: 32px; }
+::-webkit-scrollbar-thumb:hover { background-color: var(--ink-3); }
+::-webkit-scrollbar-thumb:active { background-color: var(--ink-2); }
+::-webkit-scrollbar-button { display: none; }
+@supports not selector(::-webkit-scrollbar) {
+  * { scrollbar-width: thin; scrollbar-color: var(--line-2) transparent; }
+}
 
 /* Utilities from the design runtime (support.js) plus the gaps it references. */
 .fx { display: flex; } .col { display: flex; flex-direction: column; } .wrap { flex-wrap: wrap; } .jc { justify-content: center; }
@@ -14,6 +28,27 @@ input, select, textarea { font: inherit; color: inherit; }
 .tab { height: 100%; }
 .tabs a.tab { text-decoration: none; }
 .pill.clk { cursor: pointer; }
+.ell { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Top bar (DECISIONS §35): one 50 px row at every width. The status pills sit in .tb-right, which
+   takes the space left and lays them out right to left with wrapping: whatever does not fit wraps
+   to a second line that its fixed height hides, so the last pills in the markup (clock, then
+   connections, then ports) go first. The profile pill shrinks with an ellipsis; the theme/menu
+   buttons (.tb-fixos) and the window controls never shrink, so nothing can slide under them. */
+.tb { min-width: 0; }
+.tb > .tb-perfil { flex: 0 1 auto; min-width: 0; max-width: 260px; overflow: hidden; }
+.tb-right { flex: 1 1 0; min-width: 0; margin-left: 0; height: 28px; overflow: hidden; display: flex; flex-direction: row-reverse; flex-wrap: wrap; justify-content: flex-start; align-content: flex-start; align-items: center; gap: 8px; row-gap: 28px; }
+.tb-right > * { flex: none; }
+.tb-fixos { flex: none; display: flex; align-items: center; gap: 2px; }
+.tb-fixos .menu { right: 0; top: 34px; }
+.btn.ghost.on { background: var(--surface-2); color: var(--ink); }
+.tbw .tabs { overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+.tbw .tabs::-webkit-scrollbar { display: none; }
+.tbw .tabs > .tab { flex: none; }
+
+/* Page tooltip (ui/js/dica.js): replaces the native title tooltip, which the window host clips. */
+.dica { position: fixed; z-index: 100; left: 0; top: 0; max-width: min(360px, calc(100vw - 16px)); box-sizing: border-box; padding: 5px 8px; border-radius: 6px; background: var(--ink); color: var(--bg); font-size: 12px; line-height: 1.35; white-space: pre-line; overflow-wrap: anywhere; pointer-events: none; box-shadow: 0 4px 14px rgba(0,0,0,.25); }
+.dica[hidden] { display: none; }
 .hide { display: none !important; }
 
 /* Native controls dressed as the design's fields. */
@@ -47,8 +82,11 @@ select.field { appearance: none; cursor: pointer; padding-right: 28px; backgroun
 .scr-pista .ph { display: flex; align-items: flex-end; gap: 16px; }
 .scr-pista .ph-t { display: flex; flex-direction: column; gap: 4px; }
 .scr-pista .ph-a { margin-left: auto; display: flex; gap: 8px; }
-.scr-pista .lado-h { display: flex; align-items: center; gap: 8px; }
-.scr-pista .lado-h .btn { margin-left: auto; }
+/* The side header wraps instead of overflowing: the 2.7.2 caption ("Abastecendo..", "Bicos Bloqueados")
+   is never cut; when END + chip + button do not fit, the button drops to its own row, right-aligned. */
+.scr-pista .lado-h { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; min-width: 0; }
+.scr-pista .lado-h > .st, .scr-pista .lado-h > .endtag { flex: none; }
+.scr-pista .lado-h .btn { margin-left: auto; flex: none; max-width: 100%; }
 .scr-pista .endtag { font: 600 11px/1 "IBM Plex Mono", monospace; color: var(--ink-3); }
 .scr-pista .canal-h { position: relative; }
 .scr-pista .vazio { padding: 14px 12px; }
@@ -117,7 +155,8 @@ select.field { appearance: none; cursor: pointer; padding-right: 28px; backgroun
 .scr-trafego .dec > div { background: var(--code-bg); padding: 8px 10px; display: flex; flex-direction: column; gap: 3px; }
 .scr-trafego .dec .k { color: oklch(0.6 0.01 250); font-size: 10.5px; }
 .scr-trafego .dec .v { color: var(--digit); }
-.scr-trafego .dec-h { display: flex; gap: 10px; align-items: baseline; padding: 10px 12px 8px; border-top: 1px solid oklch(1 0 0 / 0.08); }
+.scr-trafego .dec-h { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; padding: 10px 12px 8px; border-top: 1px solid oklch(1 0 0 / 0.08); }
+.scr-trafego .dec-h > .c-na { min-width: 0; overflow-wrap: anywhere; }
 .scr-trafego .ftipo { display: grid; grid-template-columns: 16px minmax(0, 1fr); gap: 10px; align-items: start; padding: 8px 14px; }
 .scr-trafego .ftipo.on { background: var(--accent-soft); }
 .scr-trafego .ftipo .radio { margin-top: 2px; }
@@ -126,6 +165,12 @@ select.field { appearance: none; cursor: pointer; padding-right: 28px; backgroun
 .field input { width: 100%; }
 .scr-trafego .ativa { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 9px 14px; }
 .scr-trafego .ativa + .ativa { border-top: 1px solid var(--line); }
+/* Frames tied to an injected fault: the event row, the request it matched and the reply it changed. */
+.scr-trafego .con-row.falha { background: oklch(0.75 0.14 27 / 0.10); box-shadow: inset 3px 0 0 oklch(0.75 0.14 27); }
+.scr-trafego .con-row.falha .c-ev { color: oklch(0.78 0.14 27); }
+.scr-trafego .con-row.afetado { background: oklch(0.75 0.14 27 / 0.06); box-shadow: inset 3px 0 0 oklch(0.75 0.14 27 / 0.55); }
+.scr-trafego .con-row.sel.falha, .scr-trafego .con-row.sel.afetado { background: oklch(0.72 0.13 255 / 0.18); }
+.scr-trafego .c-ftag { font: 600 10px/1 "IBM Plex Sans", sans-serif; color: oklch(0.8 0.12 27); border: 1px solid oklch(0.75 0.14 27 / 0.5); border-radius: 3px; padding: 1px 4px; margin-left: 6px; vertical-align: 1px; }
 
 /* ---------- Identfid ---------- */
 .scr-identfid .cols { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 16px; align-items: start; }
@@ -169,6 +214,9 @@ select.field { appearance: none; cursor: pointer; padding-right: 28px; backgroun
 .scr-agentes .args { font: 400 11.5px/1.3 "IBM Plex Mono", monospace; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .scr-agentes .codewrap { position: relative; }
 .scr-agentes .codewrap .btn { position: absolute; top: 8px; right: 8px; }
+.scr-agentes .codewrap .code { padding-right: 120px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.scr-agentes .sessoes { padding: 0 14px 10px; display: flex; flex-direction: column; gap: 6px; }
+.scr-agentes .ses { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; gap: 12px; align-items: center; padding: 6px 10px; border-radius: 6px; background: var(--surface-2); }
 .scr-agentes .div { display: grid; grid-template-columns: 70px 1fr 1fr; gap: 10px; padding: 7px 14px; font: 400 12px/1.4 "IBM Plex Mono", monospace; word-break: break-all; }
 .scr-agentes .div + .div { border-top: 1px solid var(--line); }
 .scr-agentes .bar { height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden; }
@@ -204,6 +252,7 @@ select.field { appearance: none; cursor: pointer; padding-right: 28px; backgroun
 .scr-comunicacao .prev { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 6px; background: var(--code-bg); color: var(--code-ink); font: 500 14px/1 "IBM Plex Mono", monospace; overflow: hidden; }
 .scr-comunicacao .prev .kk { color: var(--digit); }
 .scr-comunicacao .prev .chip { margin-left: auto; font: 600 10.5px/1 "IBM Plex Sans", sans-serif; letter-spacing: .04em; color: oklch(0.82 0.13 150); border: 1px solid oklch(0.82 0.13 150 / 0.4); padding: 4px 6px; border-radius: 4px; white-space: nowrap; }
+.scr-comunicacao .prev .chip.ruim { color: oklch(0.78 0.15 27); border-color: oklch(0.78 0.15 27 / 0.5); }
 .scr-comunicacao .resp { padding: 10px 12px; display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 10px; font: 400 12.5px/1.5 "IBM Plex Mono", monospace; word-break: break-all; }
 .scr-comunicacao .hist { display: grid; grid-template-columns: 70px 170px minmax(0, 1fr) 70px; gap: 10px; align-items: center; padding: 8px 14px; font: 400 12px/1.3 "IBM Plex Mono", monospace; }
 .scr-comunicacao .hist + .hist { border-top: 1px solid var(--line); }
@@ -261,3 +310,44 @@ select.field { appearance: none; cursor: pointer; padding-right: 28px; backgroun
 .scr-comunicacao .inp.cmd { cursor: text; }
 .scr-comunicacao .inp.cmd input { flex: 0 1 auto; field-sizing: content; min-width: 2ch; }
 .scr-agentes .ell { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+
+/* ---------- Responsive (narrow windows; no horizontal page scroll) ---------- */
+/* Channel grid 4 → 2 → 1 (detailed and Horustech compact). */
+@media (max-width: 1279px) {
+  .scr-pista .grid4, .scr-pista .g12 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 679px) {
+  .scr-pista .grid4, .scr-pista .g12 { grid-template-columns: minmax(0, 1fr); }
+}
+/* Two-column screens stack below 1080 px. */
+@media (max-width: 1079px) {
+  .scr-trafego .cols, .scr-config .cols, .scr-identfid .cols, .scr-agentes .cols, .scr-comunicacao .cols, .scr-diff .cols { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 899px) {
+  .tb { gap: 10px; padding: 0 16px; }
+  .scr-pista .ph { flex-wrap: wrap; align-items: flex-start; }
+  .scr-pista .ph-a { margin-left: 0; flex-wrap: wrap; }
+}
+@media (max-width: 719px) {
+  .main { padding: 16px; }
+  /* Console: time, direction, frame and checksum; port and connection go in the decoder. */
+  .con-row { grid-template-columns: 84px 26px minmax(0, 1fr) 58px; gap: 8px; padding: 2px 10px; }
+  .con-row > :nth-child(2), .con-row > :nth-child(3) { display: none; }
+  .scr-trafego .dec { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .scr-trafego .fgrid { grid-template-columns: minmax(0, 1fr); }
+  .scr-trafego .fcell[style*="span 2"] { grid-column: auto !important; }
+}
+
+/* ---------- Window host (DECISIONS §32): the top bar is the title bar ---------- */
+/* Only inside tools/window-go (class set when the host answers): the bar drags the window, its
+   controls do not, and minimize / maximize / close are the last item of the 50 px bar row. */
+.tbw.em-janela { position: relative; }
+.tbw.em-janela .tb { app-region: drag; -webkit-app-region: drag; padding-right: 0; user-select: none; }
+.tbw.em-janela .tb :is(button, a, input, select, textarea, [data-act], .menu) { app-region: no-drag; -webkit-app-region: no-drag; }
+/* A flex item of the bar row, never shrunk: the controls are always on screen (§35). */
+.janela-ctl { flex: none; align-self: stretch; height: 50px; margin-left: -4px; display: flex; app-region: no-drag; -webkit-app-region: no-drag; }
+.janela-ctl button { width: 46px; height: 100%; display: flex; align-items: center; justify-content: center; padding: 0; border: 0; background: transparent; color: var(--ink); cursor: default; }
+.janela-ctl button:hover { background: var(--surface-2); }
+.janela-ctl button.x:hover { background: #c42b1c; color: #fff; }
+.janela-ctl button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }

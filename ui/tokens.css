@@ -35,6 +35,8 @@ a:hover { text-decoration: underline; }
   --falha-fg: oklch(0.5 0.17 27);    --falha-bg: oklch(0.95 0.035 27);  --falha-bd: oklch(0.82 0.09 27);
   --ok: oklch(0.5 0.13 150);
   --err: oklch(0.52 0.17 27);
+  --danger: oklch(0.52 0.19 27);
+  --danger-ink: oklch(0.99 0.005 27);
   --warn: oklch(0.55 0.12 70);
   color-scheme: light;
 }
@@ -66,6 +68,8 @@ a:hover { text-decoration: underline; }
   --falha-fg: oklch(0.8 0.13 27);    --falha-bg: oklch(0.3 0.07 27);    --falha-bd: oklch(0.45 0.12 27);
   --ok: oklch(0.78 0.13 150);
   --err: oklch(0.75 0.14 27);
+  --danger: oklch(0.55 0.19 27);
+  --danger-ink: oklch(0.99 0.005 27);
   --warn: oklch(0.82 0.12 80);
   color-scheme: dark;
 }
@@ -119,6 +123,9 @@ a:hover { text-decoration: underline; }
 .btn.pri { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .btn.ghost { border-color: transparent; background: transparent; color: var(--ink-2); }
 .btn.danger { color: var(--err); }
+/* Destructive primary (confirm dialog): solid red, white text, readable in both themes. */
+.btn.pri.danger { background: var(--danger); border-color: var(--danger); color: var(--danger-ink); }
+.btn.pri.danger:hover { filter: brightness(1.08); }
 .btn.sm { height: 26px; padding: 0 9px; font-size: 12px; }
 .btn.wide { width: 100%; }
 .seg { display: inline-flex; padding: 2px; gap: 2px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 7px; }

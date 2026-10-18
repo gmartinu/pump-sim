@@ -36,4 +36,6 @@ export * from './diff/resposta.js';
 export * from './diff/oraculo.js';
 export * from './diff/tolerancia.js';
 export * from './mcp/servidor.js';
+export * from './mcp/http.js';
+export * from './versao.js';
 export * from './control/validar.js';
