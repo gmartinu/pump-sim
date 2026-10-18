@@ -20,8 +20,8 @@ describe('versão e CHANGELOG', () => {
     expect(itens.length).toBeLessThanOrEqual(MAX_ITENS);
   });
 
-  it('1.0.3 é a única entrada (os releases antigos são apagados)', () => {
-    expect([...fs.readFileSync('CHANGELOG.md', 'utf8').matchAll(/^## (.+)$/gm)].map((m) => m[1])).toEqual(['1.0.3']);
+  it('1.0.4 é a única entrada (os releases antigos são apagados)', () => {
+    expect([...fs.readFileSync('CHANGELOG.md', 'utf8').matchAll(/^## (.+)$/gm)].map((m) => m[1])).toEqual(['1.0.4']);
   });
 
   it('a seção começa por "## Changes" e junta linhas de continuação', () => {
